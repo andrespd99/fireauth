@@ -11,11 +11,23 @@ Instead of manually grabbing tokens from the frontend, run a command and get eve
 
 ## Install
 
+Since this is a private repo, you need GitHub access. The easiest way is via the `gh` CLI:
+
 ```bash
-curl -sSL https://raw.githubusercontent.com/cashea-bnpl/auth-devtools/main/install.sh | bash
+# If you have gh CLI installed and authenticated:
+curl -sSL "https://raw.githubusercontent.com/cashea-bnpl/auth-devtools/main/install.sh" \
+  -H "Authorization: token $(gh auth token)" | bash
 ```
 
-This downloads the latest pre-built binary for your OS/architecture. No Go installation needed.
+Or with a personal access token:
+
+```bash
+export GITHUB_TOKEN=ghp_your_token_here
+curl -sSL "https://raw.githubusercontent.com/cashea-bnpl/auth-devtools/main/install.sh" \
+  -H "Authorization: token $GITHUB_TOKEN" | bash
+```
+
+The script auto-detects your OS/architecture, downloads the right binary, and installs it. No Go needed.
 
 ### Build from source
 
