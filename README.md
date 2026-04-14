@@ -6,22 +6,25 @@ Instead of manually grabbing tokens from the frontend, run a command and get eve
 
 ## Prerequisites
 
-- [Go 1.21+](https://go.dev/dl/) (`brew install go`)
-- [Task](https://taskfile.dev/) (`brew install go-task`)
 - Firebase Web API Key (from Firebase Console > Project Settings > General)
 - Firebase service account JSON key (from Firebase Console > Project Settings > Service accounts)
 
 ## Install
 
 ```bash
+curl -sSL https://raw.githubusercontent.com/cashea-bnpl/auth-devtools/main/install.sh | bash
+```
+
+This downloads the latest pre-built binary for your OS/architecture. No Go installation needed.
+
+### Build from source
+
+If you prefer to build from source (requires [Go 1.21+](https://go.dev/dl/) and [Task](https://taskfile.dev/)):
+
+```bash
 git clone git@github.com:cashea-bnpl/auth-devtools.git
 cd auth-devtools
 task build
-```
-
-Optionally move the binary to your PATH:
-
-```bash
 cp cashea-auth /usr/local/bin/
 ```
 
