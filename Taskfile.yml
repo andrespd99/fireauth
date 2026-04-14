@@ -1,0 +1,37 @@
+version: "3"
+
+vars:
+  BINARY: cashea-auth
+  VERSION:
+    sh: git describe --tags --always --dirty 2>/dev/null || echo "dev"
+
+tasks:
+  build:
+    desc: Build the binary
+    cmds:
+      - go build -ldflags "-X main.version={{.VERSION}}" -o {{.BINARY}} .
+
+  install:
+    desc: Install the binary to $GOPATH/bin
+    cmds:
+      - go install -ldflags "-X main.version={{.VERSION}}" .
+
+  test:
+    desc: Run all tests
+    cmds:
+      - go test ./...
+
+  test-verbose:
+    desc: Run all tests with verbose output
+    cmds:
+      - go test -v ./...
+
+  lint:
+    desc: Run go vet
+    cmds:
+      - go vet ./...
+
+  clean:
+    desc: Remove build artifacts
+    cmds:
+      - rm -f {{.BINARY}}
