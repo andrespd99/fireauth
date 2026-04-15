@@ -123,6 +123,18 @@ cashea-auth logout
 cashea-auth logout other@example.com
 ```
 
+### Updating
+
+```bash
+# Update to the latest version
+cashea-auth update
+
+# Check for updates without installing
+cashea-auth update --check
+```
+
+Requires `GITHUB_TOKEN` or `gh` CLI (same as install).
+
 ### Use with Postman
 
 > [!NOTE]
@@ -148,6 +160,7 @@ cashea-auth --verbose token
 | `sessions` | List all stored sessions                       |
 | `switch`   | Switch active session                          |
 | `logout`   | Remove a stored session                        |
+| `update`   | Self-update to the latest release               |
 
 ## Development
 
