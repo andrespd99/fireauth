@@ -40,10 +40,19 @@ var projectRemoveCmd = &cobra.Command{
 	RunE:    runProjectRemove,
 }
 
+var projectRenameCmd = &cobra.Command{
+	Use:     "rename <old> <new>",
+	Aliases: []string{"mv"},
+	Short:   "Rename a project",
+	Args:    cobra.ExactArgs(2),
+	RunE:    runProjectRename,
+}
+
 func init() {
 	projectCmd.AddCommand(projectListCmd)
 	projectCmd.AddCommand(projectUseCmd)
 	projectCmd.AddCommand(projectRemoveCmd)
+	projectCmd.AddCommand(projectRenameCmd)
 	rootCmd.AddCommand(projectCmd)
 }
 
@@ -229,6 +238,36 @@ func runProjectRemove(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Printf("✓ Removed project %s\n", target)
+	return nil
+}
+
+// --- project rename ---
+
+func runProjectRename(cmd *cobra.Command, args []string) error {
+	oldName := args[0]
+	newName := args[1]
+
+	// Validate the old project exists.
+	projects, err := store.ListProjects()
+	if err != nil {
+		return err
+	}
+	found := false
+	for _, name := range projects {
+		if name == oldName {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return fmt.Errorf("project %q not found — available: %s", oldName, strings.Join(projects, ", "))
+	}
+
+	if err := store.RenameProject(oldName, newName); err != nil {
+		return err
+	}
+
+	fmt.Printf("✓ Renamed project %s → %s\n", oldName, newName)
 	return nil
 }
 

@@ -115,6 +115,59 @@ func DeleteProject(name string) error {
 	return os.RemoveAll(pdir)
 }
 
+// RenameProject renames a project directory and updates its project.json name
+// field. If the renamed project was the active one, the global config is
+// updated to the new name.
+func RenameProject(oldName, newName string) error {
+	if oldName == newName {
+		return nil
+	}
+
+	pdir, err := config.ProjectsDir()
+	if err != nil {
+		return err
+	}
+
+	// Ensure the new name doesn't already exist.
+	newPath := filepath.Join(pdir, newName)
+	if _, err := os.Stat(newPath); err == nil {
+		return fmt.Errorf("project %q already exists", newName)
+	}
+
+	oldPath := filepath.Join(pdir, oldName)
+	logger.Debug("renaming project", "from", oldName, "to", newName, "path", oldPath)
+
+	if err := os.Rename(oldPath, newPath); err != nil {
+		return fmt.Errorf("renaming project directory: %w", err)
+	}
+
+	// Update the name field inside project.json.
+	p, err := LoadProject(newName)
+	if err != nil {
+		return err
+	}
+	p.Name = newName
+	// SaveProject writes to the new directory using p.Name, which now matches.
+	if err := SaveProject(p); err != nil {
+		return fmt.Errorf("updating project name: %w", err)
+	}
+
+	// Update active project in the global config if needed.
+	cfg, err := LoadConfig()
+	if err != nil {
+		return err
+	}
+	if cfg.ActiveProject == oldName {
+		cfg.ActiveProject = newName
+		if err := SaveConfig(cfg); err != nil {
+			return fmt.Errorf("updating active project: %w", err)
+		}
+	}
+
+	logger.Debug("project renamed", "from", oldName, "to", newName)
+	return nil
+}
+
 // ListProjects returns the names of all configured projects by scanning the
 // projects directory.
 func ListProjects() ([]string, error) {

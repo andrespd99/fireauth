@@ -163,6 +163,95 @@ func TestDeleteProject(t *testing.T) {
 	}
 }
 
+func TestRenameProject(t *testing.T) {
+	setupTestDir(t)
+
+	p := &Project{Name: "staging", FirebaseAPIKey: "key", ActiveSession: "user@example.com"}
+	if err := SaveProject(p); err != nil {
+		t.Fatal(err)
+	}
+	cfg := &Config{ActiveProject: "staging"}
+	if err := SaveConfig(cfg); err != nil {
+		t.Fatal(err)
+	}
+
+	// Add a session so we can verify it survives the rename.
+	sess := &Session{Email: "user@example.com", UID: "uid1"}
+	if err := UpdateSession("staging", sess); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := RenameProject("staging", "production"); err != nil {
+		t.Fatalf("RenameProject: %v", err)
+	}
+
+	// Old name should be gone.
+	if _, err := LoadProject("staging"); err == nil {
+		t.Fatal("expected error loading old project name")
+	}
+
+	// New name should have the data.
+	loaded, err := LoadProject("production")
+	if err != nil {
+		t.Fatalf("LoadProject(production): %v", err)
+	}
+	if loaded.FirebaseAPIKey != "key" {
+		t.Errorf("FirebaseAPIKey = %q, want %q", loaded.FirebaseAPIKey, "key")
+	}
+	if loaded.Name != "production" {
+		t.Errorf("Name = %q, want %q", loaded.Name, "production")
+	}
+	if loaded.ActiveSession != "user@example.com" {
+		t.Errorf("ActiveSession = %q, want %q", loaded.ActiveSession, "user@example.com")
+	}
+
+	// Sessions should survive the rename.
+	sessions, err := LoadSessions("production")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := sessions["user@example.com"]; !ok {
+		t.Error("expected session to survive rename")
+	}
+
+	// Active project in global config should be updated.
+	cfg, err = LoadConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.ActiveProject != "production" {
+		t.Errorf("ActiveProject = %q, want %q", cfg.ActiveProject, "production")
+	}
+}
+
+func TestRenameProject_AlreadyExists(t *testing.T) {
+	setupTestDir(t)
+
+	if err := SaveProject(&Project{Name: "staging", FirebaseAPIKey: "key1"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := SaveProject(&Project{Name: "production", FirebaseAPIKey: "key2"}); err != nil {
+		t.Fatal(err)
+	}
+
+	err := RenameProject("staging", "production")
+	if err == nil {
+		t.Fatal("expected error renaming to an existing project name")
+	}
+}
+
+func TestRenameProject_SameName(t *testing.T) {
+	setupTestDir(t)
+
+	if err := SaveProject(&Project{Name: "staging", FirebaseAPIKey: "key"}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := RenameProject("staging", "staging"); err != nil {
+		t.Fatalf("RenameProject same name should be no-op: %v", err)
+	}
+}
+
 func TestSaveAndLoadSessions(t *testing.T) {
 	projectName := setupTestProject(t, "staging")
 
