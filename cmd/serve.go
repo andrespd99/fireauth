@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -88,10 +89,11 @@ func writeError(w http.ResponseWriter, code int, msg string) {
 }
 
 // resolveProjectParam resolves the project from the ?project= query parameter,
-// falling back to the active project in config.
+// falling back to the active project in config. The value is sanitized with
+// filepath.Base to prevent path traversal.
 func resolveProjectParam(r *http.Request) (string, error) {
 	if p := r.URL.Query().Get("project"); p != "" {
-		return p, nil
+		return filepath.Base(p), nil
 	}
 	return store.GetActiveProjectName()
 }
