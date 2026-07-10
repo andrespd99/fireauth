@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cashea-bnpl/auth-devtools/internal/firebase"
-	"github.com/cashea-bnpl/auth-devtools/internal/logger"
-	"github.com/cashea-bnpl/auth-devtools/internal/store"
+	"github.com/andrespd99/fireauth/internal/firebase"
+	"github.com/andrespd99/fireauth/internal/logger"
+	"github.com/andrespd99/fireauth/internal/store"
 	"github.com/spf13/cobra"
 )
 
@@ -34,19 +34,8 @@ func runMe(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	p, sess, err := store.GetSession(projectName, "")
-	if err != nil {
-		return err
-	}
-
-	logger.Debug("loading admin client", "project", projectName, "service_account", p.ServiceAccountPath)
-	admin, err := firebase.NewAdminClient(p.ServiceAccountPath)
-	if err != nil {
-		return fmt.Errorf("initialising admin client: %w", err)
-	}
-
 	ctx := context.Background()
-	user, err := admin.GetUserByUID(ctx, sess.UID)
+	user, sess, projectName, err := getMe(ctx, projectName)
 	if err != nil {
 		return err
 	}
@@ -99,6 +88,28 @@ func runMe(cmd *cobra.Command, args []string) error {
 	fmt.Println()
 
 	return nil
+}
+
+// getMe fetches the Firebase Auth user record for the active session in the
+// given project. It returns the user info and the current session.
+func getMe(ctx context.Context, projectName string) (*firebase.UserInfo, *store.Session, string, error) {
+	p, sess, err := store.GetSession(projectName, "")
+	if err != nil {
+		return nil, nil, "", err
+	}
+
+	logger.Debug("loading admin client", "project", projectName, "service_account", p.ServiceAccountPath)
+	admin, err := firebase.NewAdminClient(p.ServiceAccountPath)
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("initialising admin client: %w", err)
+	}
+
+	user, err := admin.GetUserByUID(ctx, sess.UID)
+	if err != nil {
+		return nil, nil, "", err
+	}
+
+	return user, sess, projectName, nil
 }
 
 func formatDuration(d time.Duration) string {

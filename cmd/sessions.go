@@ -6,7 +6,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/cashea-bnpl/auth-devtools/internal/store"
+	"github.com/andrespd99/fireauth/internal/store"
 	"github.com/spf13/cobra"
 )
 
@@ -41,7 +41,7 @@ func runSessions(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(sessions) == 0 {
-		fmt.Printf("No sessions stored for project %q. Run 'cashea-auth login' to sign in.\n", projectName)
+		fmt.Printf("No sessions stored for project %q. Run 'fireauth login' to sign in.\n", projectName)
 		return nil
 	}
 

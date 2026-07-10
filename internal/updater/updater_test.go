@@ -19,8 +19,8 @@ func TestFetchLatestRelease_Success(t *testing.T) {
 		release := GitHubRelease{
 			TagName: "v0.2.0",
 			Assets: []GitHubAsset{
-				{ID: 1, Name: "cashea-auth_darwin_arm64.tar.gz"},
-				{ID: 2, Name: "cashea-auth_linux_amd64.tar.gz"},
+				{ID: 1, Name: "fireauth_darwin_arm64.tar.gz"},
+				{ID: 2, Name: "fireauth_linux_amd64.tar.gz"},
 				{ID: 3, Name: "checksums.txt"},
 			},
 		}
@@ -80,9 +80,9 @@ func TestFindAsset(t *testing.T) {
 	release := &GitHubRelease{
 		TagName: "v0.2.0",
 		Assets: []GitHubAsset{
-			{ID: 1, Name: "cashea-auth_darwin_arm64.tar.gz"},
-			{ID: 2, Name: "cashea-auth_linux_amd64.tar.gz"},
-			{ID: 3, Name: "cashea-auth_darwin_amd64.tar.gz"},
+			{ID: 1, Name: "fireauth_darwin_arm64.tar.gz"},
+			{ID: 2, Name: "fireauth_linux_amd64.tar.gz"},
+			{ID: 3, Name: "fireauth_darwin_amd64.tar.gz"},
 			{ID: 4, Name: "checksums.txt"},
 		},
 	}
@@ -108,7 +108,7 @@ func TestFindAsset_NotFound(t *testing.T) {
 	release := &GitHubRelease{
 		TagName: "v0.2.0",
 		Assets: []GitHubAsset{
-			{ID: 1, Name: "cashea-auth_darwin_arm64.tar.gz"},
+			{ID: 1, Name: "fireauth_darwin_arm64.tar.gz"},
 		},
 	}
 
@@ -179,7 +179,7 @@ func TestNeedsUpdate(t *testing.T) {
 func TestExtractBinary(t *testing.T) {
 	// Build a tar.gz archive with a fake binary inside.
 	binaryContent := []byte("#!/bin/sh\necho hello")
-	archive := createTarGz(t, "cashea-auth", binaryContent)
+	archive := createTarGz(t, "fireauth", binaryContent)
 
 	extracted, err := ExtractBinary(archive)
 	if err != nil {

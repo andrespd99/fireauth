@@ -18,7 +18,7 @@ type Config struct {
 }
 
 // Project holds the configuration for a single Firebase project, persisted
-// in ~/.cashea-auth/projects/<name>/project.json.
+// in ~/.fireauth/projects/<name>/project.json.
 type Project struct {
 	Name               string `json:"name"`
 	FirebaseAPIKey     string `json:"firebase_api_key"`

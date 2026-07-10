@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/cashea-bnpl/auth-devtools/cmd"
+	"github.com/andrespd99/fireauth/cmd"
 )
 
 // version is set via ldflags at build time.
