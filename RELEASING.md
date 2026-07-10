@@ -8,6 +8,9 @@ and publishes the release all in one step.
 
 - All changes you want in the release must be merged into `main`.
 - Ensure `main` is green (CI passing).
+- The `HOMEBREW_TAP_GITHUB_TOKEN` secret must be set in the repo secrets
+  (a GitHub PAT with `repo` scope on `andrespd99/homebrew-fireauth`). The
+  default `GITHUB_TOKEN` cannot push to another repository.
 
 ## Steps
 

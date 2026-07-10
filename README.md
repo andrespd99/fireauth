@@ -11,6 +11,21 @@ Instead of manually grabbing tokens from the frontend, run a command and get eve
 
 ## Install
 
+### Homebrew (recommended)
+
+```bash
+brew tap andrespd99/fireauth
+brew install fireauth
+```
+
+To upgrade later:
+
+```bash
+brew upgrade fireauth
+```
+
+### Install script
+
 ```bash
 curl -sSL "https://raw.githubusercontent.com/andrespd99/fireauth/main/install.sh" | bash
 ```
@@ -20,8 +35,7 @@ The script auto-detects your OS/architecture, downloads the right binary, and in
 To install a specific version (e.g. a pre-release):
 
 ```bash
-curl -sSL "https://raw.githubusercontent.com/cashea-bnpl/auth-devtools/main/install.sh" \
-  -H "Authorization: token $(gh auth token)" | bash -s -- --version 0.3.0-alpha.1
+curl -sSL "https://raw.githubusercontent.com/andrespd99/fireauth/main/install.sh" | bash -s -- --version 0.3.0-alpha.1
 ```
 
 ### Build from source
