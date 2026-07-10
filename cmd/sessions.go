@@ -25,18 +25,23 @@ func init() {
 }
 
 func runSessions(cmd *cobra.Command, args []string) error {
-	cfg, err := store.LoadConfig()
+	projectName, err := resolveProjectName()
 	if err != nil {
 		return err
 	}
 
-	sessions, err := store.LoadSessions()
+	p, err := store.LoadProject(projectName)
+	if err != nil {
+		return err
+	}
+
+	sessions, err := store.LoadSessions(projectName)
 	if err != nil {
 		return err
 	}
 
 	if len(sessions) == 0 {
-		fmt.Println("No sessions stored. Run 'cashea-auth login' to sign in.")
+		fmt.Printf("No sessions stored for project %q. Run 'cashea-auth login' to sign in.\n", projectName)
 		return nil
 	}
 
@@ -54,6 +59,7 @@ func runSessions(cmd *cobra.Command, args []string) error {
 	sort.Strings(emails)
 
 	fmt.Println()
+	fmt.Printf("  Project: %s\n\n", projectName)
 	fmt.Printf("  %-30s %-12s %-20s %s\n", "EMAIL", "UID", "TOKEN", "")
 	fmt.Printf("  %-30s %-12s %-20s %s\n", "-----", "---", "-----", "")
 
@@ -67,7 +73,7 @@ func runSessions(cmd *cobra.Command, args []string) error {
 		tokenStatus := tokenStatusString(sess.TokenExpiry)
 
 		active := ""
-		if email == cfg.ActiveSession {
+		if email == p.ActiveSession {
 			active = " ← active"
 		}
 

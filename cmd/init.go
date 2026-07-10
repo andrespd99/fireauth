@@ -17,18 +17,21 @@ import (
 var (
 	flagAPIKey         string
 	flagServiceAccount string
+	flagProjectName    string
 )
 
 var initCmd = &cobra.Command{
-	Use:   "init",
-	Short: "Set up cashea-auth for the first time",
-	Long:  "Interactive wizard that configures the Firebase API key and service account for local use.",
+	Use:   "init [project-name]",
+	Short: "Set up a Firebase project",
+	Long:  "Interactive wizard that configures a Firebase project (API key and service account) for local use.",
+	Args:  cobra.MaximumNArgs(1),
 	RunE:  runInit,
 }
 
 func init() {
 	initCmd.Flags().StringVar(&flagAPIKey, "api-key", "", "Firebase Web API key (non-interactive)")
 	initCmd.Flags().StringVar(&flagServiceAccount, "service-account", "", "path to Firebase service account JSON (non-interactive)")
+	initCmd.Flags().StringVar(&flagProjectName, "name", "", "project name (defaults to the Firebase project_id from the service account)")
 	rootCmd.AddCommand(initCmd)
 }
 
@@ -42,7 +45,13 @@ func runInit(cmd *cobra.Command, args []string) error {
 	}
 	logger.Debug("config directory ready", "path", dir)
 
-	// 2. Get API key.
+	// 2. Determine project name.
+	projectName := flagProjectName
+	if projectName == "" && len(args) == 1 {
+		projectName = args[0]
+	}
+
+	// 3. Get API key.
 	apiKey := flagAPIKey
 	if apiKey == "" {
 		fmt.Print("Firebase Web API Key: ")
@@ -57,7 +66,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 	}
 	logger.Debug("API key provided", "length", len(apiKey))
 
-	// 3. Get service account path.
+	// 4. Get service account path.
 	saPath := flagServiceAccount
 	if saPath == "" {
 		fmt.Print("Path to Firebase service account JSON: ")
@@ -85,30 +94,75 @@ func runInit(cmd *cobra.Command, args []string) error {
 	if err := json.Unmarshal(saData, &saJSON); err != nil {
 		return fmt.Errorf("service account file is not valid JSON: %w", err)
 	}
-	if _, ok := saJSON["project_id"]; !ok {
+	projectID, _ := saJSON["project_id"].(string)
+	if projectID == "" {
 		return fmt.Errorf("service account JSON missing 'project_id' field — is this the right file?")
 	}
-	logger.Debug("service account validated", "project_id", saJSON["project_id"])
+	logger.Debug("service account validated", "project_id", projectID)
 
-	// 4. Copy service account into config dir.
-	destPath := filepath.Join(dir, "service-account.json")
+	// Derive project name from service account if not provided.
+	if projectName == "" {
+		projectName = projectID
+	}
+
+	// 5. Create project directory and copy service account into it.
+	pdir, err := config.ProjectDir(projectName)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(pdir, 0700); err != nil {
+		return fmt.Errorf("creating project directory: %w", err)
+	}
+
+	destPath := filepath.Join(pdir, "service-account.json")
 	if err := os.WriteFile(destPath, saData, 0600); err != nil {
 		return fmt.Errorf("copying service account: %w", err)
 	}
 	logger.Debug("service account copied", "dest", destPath)
 
-	// 5. Save config.
-	cfg := &store.Config{
+	// 6. Save project config.
+	p := &store.Project{
+		Name:               projectName,
 		FirebaseAPIKey:     apiKey,
 		ServiceAccountPath: destPath,
 	}
+	if err := store.SaveProject(p); err != nil {
+		return fmt.Errorf("saving project config: %w", err)
+	}
+
+	// 7. Update global config (set active project, migrating legacy if needed).
+	cfg, err := store.LoadConfig()
+	if err != nil {
+		// No config exists yet — create one.
+		cfg = &store.Config{}
+	}
+	cfg.ActiveProject = projectName
+	// Clear legacy fields if present.
+	cfg.FirebaseAPIKey = ""
+	cfg.ServiceAccountPath = ""
+	cfg.ActiveSession = ""
 	if err := store.SaveConfig(cfg); err != nil {
 		return fmt.Errorf("saving config: %w", err)
 	}
 
+	// Check if this is the only/first project.
+	projects, _ := store.ListProjects()
+
 	fmt.Println()
 	fmt.Println("✓ cashea-auth initialized successfully!")
+	fmt.Printf("  Project:          %s\n", projectName)
+	fmt.Printf("  Firebase Project: %s\n", projectID)
 	fmt.Printf("  Config directory: %s\n", dir)
+	fmt.Printf("  Active project:   %s\n", projectName)
+	if len(projects) > 1 {
+		fmt.Println()
+		fmt.Println("Other projects:")
+		for _, name := range projects {
+			if name != projectName {
+				fmt.Printf("  - %s\n", name)
+			}
+		}
+	}
 	fmt.Println()
 	fmt.Println("Next step: run 'cashea-auth login' to sign in.")
 	return nil
