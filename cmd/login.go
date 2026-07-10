@@ -7,9 +7,9 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/cashea-bnpl/auth-devtools/internal/firebase"
-	"github.com/cashea-bnpl/auth-devtools/internal/logger"
-	"github.com/cashea-bnpl/auth-devtools/internal/store"
+	"github.com/andrespd99/fireauth/internal/firebase"
+	"github.com/andrespd99/fireauth/internal/logger"
+	"github.com/andrespd99/fireauth/internal/store"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )

@@ -3,8 +3,8 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/cashea-bnpl/auth-devtools/internal/logger"
-	"github.com/cashea-bnpl/auth-devtools/internal/updater"
+	"github.com/andrespd99/fireauth/internal/logger"
+	"github.com/andrespd99/fireauth/internal/updater"
 	"github.com/spf13/cobra"
 )
 
@@ -12,7 +12,7 @@ var flagCheck bool
 
 var updateCmd = &cobra.Command{
 	Use:   "update",
-	Short: "Update cashea-auth to the latest version",
+	Short: "Update fireauth to the latest version",
 	Long:  "Check for a new release on GitHub and replace the current binary.",
 	RunE:  runUpdate,
 }
@@ -42,11 +42,11 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 	}
 
 	if flagCheck {
-		fmt.Printf("Update available: %s → %s (run 'cashea-auth update' to install)\n", version, release.TagName)
+		fmt.Printf("Update available: %s → %s (run 'fireauth update' to install)\n", version, release.TagName)
 		return nil
 	}
 
-	fmt.Printf("Updating cashea-auth %s → %s...\n", version, release.TagName)
+	fmt.Printf("Updating fireauth %s → %s...\n", version, release.TagName)
 
 	// 4. Find the right asset for this platform.
 	goos, goarch := updater.CurrentPlatform()

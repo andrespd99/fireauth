@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cashea-bnpl/auth-devtools/internal/firebase"
-	"github.com/cashea-bnpl/auth-devtools/internal/logger"
-	"github.com/cashea-bnpl/auth-devtools/internal/store"
+	"github.com/andrespd99/fireauth/internal/firebase"
+	"github.com/andrespd99/fireauth/internal/logger"
+	"github.com/andrespd99/fireauth/internal/store"
 	"github.com/spf13/cobra"
 )
 
@@ -27,7 +27,7 @@ var tokenCmd = &cobra.Command{
 The token is printed to stdout with no extra formatting, making it easy to use
 in shell pipelines:
 
-  curl -H "Authorization: Bearer $(cashea-auth token)" https://api.example.com`,
+  curl -H "Authorization: Bearer $(fireauth token)" https://api.example.com`,
 	RunE: runToken,
 }
 
@@ -94,7 +94,7 @@ func getToken(projectName string, forceRefresh bool) (string, error) {
 
 		result, err := firebase.RefreshIDToken(p.FirebaseAPIKey, sess.RefreshToken)
 		if err != nil {
-			return "", fmt.Errorf("refreshing token: %w\nRun 'cashea-auth login' to re-authenticate", err)
+			return "", fmt.Errorf("refreshing token: %w\nRun 'fireauth login' to re-authenticate", err)
 		}
 
 		// Update session with new tokens.

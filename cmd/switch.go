@@ -7,8 +7,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/cashea-bnpl/auth-devtools/internal/logger"
-	"github.com/cashea-bnpl/auth-devtools/internal/store"
+	"github.com/andrespd99/fireauth/internal/logger"
+	"github.com/andrespd99/fireauth/internal/store"
 	"github.com/spf13/cobra"
 )
 
@@ -36,7 +36,7 @@ func runSwitch(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(sessions) == 0 {
-		return fmt.Errorf("no sessions stored in project %q — run 'cashea-auth login' first", projectName)
+		return fmt.Errorf("no sessions stored in project %q — run 'fireauth login' first", projectName)
 	}
 
 	var targetEmail string

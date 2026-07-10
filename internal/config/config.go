@@ -6,12 +6,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/cashea-bnpl/auth-devtools/internal/logger"
+	"github.com/andrespd99/fireauth/internal/logger"
 )
 
-const dirName = ".cashea-auth"
+const dirName = ".fireauth"
 
-// Dir returns the absolute path to the configuration directory (~/.cashea-auth).
+// Dir returns the absolute path to the configuration directory (~/.fireauth).
 func Dir() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -43,7 +43,7 @@ func FilePath(name string) (string, error) {
 	return filepath.Join(dir, name), nil
 }
 
-// ProjectsDir returns the path to the projects directory (~/.cashea-auth/projects).
+// ProjectsDir returns the path to the projects directory (~/.fireauth/projects).
 func ProjectsDir() (string, error) {
 	dir, err := Dir()
 	if err != nil {

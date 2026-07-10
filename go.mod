@@ -1,4 +1,4 @@
-module github.com/cashea-bnpl/auth-devtools
+module github.com/andrespd99/fireauth
 
 go 1.26.2
 

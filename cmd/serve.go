@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cashea-bnpl/auth-devtools/internal/logger"
-	"github.com/cashea-bnpl/auth-devtools/internal/store"
+	"github.com/andrespd99/fireauth/internal/logger"
+	"github.com/andrespd99/fireauth/internal/store"
 	"github.com/spf13/cobra"
 )
 
@@ -58,7 +58,7 @@ func runServe(cmd *cobra.Command, args []string) error {
 	mux.HandleFunc("GET /me", srv.handleMe)
 
 	logger.Info("starting server", "addr", flagAddr)
-	fmt.Fprintf(cmd.ErrOrStderr(), "cashea-auth server listening on http://%s\n", flagAddr)
+	fmt.Fprintf(cmd.ErrOrStderr(), "fireauth server listening on http://%s\n", flagAddr)
 	fmt.Fprintf(cmd.ErrOrStderr(), "Press Ctrl+C to stop\n")
 
 	httpServer := &http.Server{
@@ -147,7 +147,7 @@ func (s *server) handleMe(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// Distinguish "no session" errors from backend errors.
 		msg := err.Error()
-		if strings.Contains(msg, "no active") || strings.Contains(msg, "run 'cashea-auth init'") {
+		if strings.Contains(msg, "no active") || strings.Contains(msg, "run 'fireauth init'") {
 			writeError(w, http.StatusBadRequest, msg)
 			return
 		}

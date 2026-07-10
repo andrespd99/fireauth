@@ -1,7 +1,7 @@
 version: "3"
 
 vars:
-  BINARY: cashea-auth
+  BINARY: fireauth
   VERSION:
     sh: git describe --tags --always --dirty 2>/dev/null || echo "dev"
 

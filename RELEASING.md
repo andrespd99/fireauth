@@ -1,4 +1,4 @@
-# Releasing cashea-auth
+# Releasing fireauth
 
 Releases are fully automated via [goreleaser](https://goreleaser.com) and a
 GitHub Actions workflow. To cut a new release you only need to push a tag.
@@ -37,12 +37,12 @@ GitHub Actions workflow. To cut a new release you only need to push a tag.
 
 4. The [Release workflow](.github/workflows/release.yml) runs automatically:
    - goreleaser builds binaries for `darwin` and `linux` (`amd64` + `arm64`)
-   - Archives are uploaded as `cashea-auth_<os>_<arch>.tar.gz`
+   - Archives are uploaded as `fireauth_<os>_<arch>.tar.gz`
    - A `checksums.txt` file is generated
    - A GitHub Release is created with the tag name and all assets
 
 5. Verify the release on
-   [github.com/cashea-bnpl/auth-devtools/releases](https://github.com/cashea-bnpl/auth-devtools/releases).
+   [github.com/andrespd99/fireauth/releases](https://github.com/andrespd99/fireauth/releases).
 
 ## Local dry run (optional)
 

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cashea-bnpl/auth-devtools/internal/logger"
+	"github.com/andrespd99/fireauth/internal/logger"
 )
 
 // Default Firebase Auth REST API base URLs. Overridable for testing.
@@ -169,9 +169,9 @@ func friendlyError(msg string) string {
 	case "INVALID_LOGIN_CREDENTIALS":
 		return "invalid email or password"
 	case "TOKEN_EXPIRED":
-		return "session expired — run 'cashea-auth login' to re-authenticate"
+		return "session expired — run 'fireauth login' to re-authenticate"
 	case "INVALID_REFRESH_TOKEN":
-		return "refresh token is invalid — run 'cashea-auth login' to re-authenticate"
+		return "refresh token is invalid — run 'fireauth login' to re-authenticate"
 	default:
 		return msg
 	}

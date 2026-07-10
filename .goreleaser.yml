@@ -1,10 +1,10 @@
 version: 2
 
-project_name: cashea-auth
+project_name: fireauth
 
 builds:
   - main: .
-    binary: cashea-auth
+    binary: fireauth
     ldflags:
       - -s -w -X main.version={{.Version}}
     goos:
@@ -23,5 +23,5 @@ checksum:
 
 release:
   github:
-    owner: cashea-bnpl
-    name: auth-devtools
+    owner: andrespd99
+    name: fireauth
