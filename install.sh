@@ -4,10 +4,52 @@ set -euo pipefail
 REPO="cashea-bnpl/auth-devtools"
 BINARY="cashea-auth"
 INSTALL_DIR="/usr/local/bin"
+API_BASE="https://api.github.com/repos/${REPO}"
+
+# --- Parse arguments ---
+TARGET_VERSION=""
+
+usage() {
+  cat <<EOF
+Usage: $0 [OPTIONS]
+
+Install cashea-auth from GitHub releases.
+
+Options:
+  --version <ver>   Install a specific version (e.g. 0.3.0, 0.3.0-alpha.1)
+                    If omitted, installs the latest stable release.
+  --help            Show this help message.
+
+Environment:
+  GITHUB_TOKEN      Required (private repo). Or use gh CLI (gh auth login).
+
+Examples:
+  $0                          # Install latest stable
+  $0 --version 0.3.0-stable    # Install a specific stable release
+  $0 --version 0.3.0-alpha.1   # Install a pre-release
+EOF
+}
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --version)
+      TARGET_VERSION="$2"
+      shift 2
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "Error: unknown option: $1" >&2
+      usage >&2
+      exit 1
+      ;;
+  esac
+done
 
 # --- GitHub token (required for private repos) ---
 if [ -z "${GITHUB_TOKEN:-}" ]; then
-  # Try gh CLI token as fallback.
   if command -v gh &>/dev/null; then
     GITHUB_TOKEN=$(gh auth token 2>/dev/null || true)
   fi
@@ -23,7 +65,7 @@ fi
 
 AUTH_HEADER="Authorization: token ${GITHUB_TOKEN}"
 
-# Detect OS and architecture.
+# --- Detect OS and architecture ---
 OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
 ARCH="$(uname -m)"
 
@@ -47,40 +89,67 @@ esac
 
 echo "Detected: ${OS}/${ARCH}"
 
-# Get the latest release tag.
-echo "Fetching latest release..."
-LATEST=$(curl -fsSL -H "$AUTH_HEADER" "https://api.github.com/repos/${REPO}/releases/latest" | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
-
-if [ -z "$LATEST" ]; then
-  echo "Error: could not determine latest release." >&2
-  echo "Check https://github.com/${REPO}/releases or verify your GITHUB_TOKEN has repo access." >&2
-  exit 1
-fi
-
-echo "Latest version: ${LATEST}"
-
-# Find the asset download URL for this OS/arch.
 ARCHIVE="${BINARY}_${OS}_${ARCH}.tar.gz"
-ASSET_URL=$(curl -fsSL -H "$AUTH_HEADER" "https://api.github.com/repos/${REPO}/releases/latest" \
-  | grep -o "\"url\": \"https://api.github.com/repos/${REPO}/releases/assets/[0-9]*\"" \
-  | head -1 \
-  | sed -E 's/"url": "(.*)"/\1/')
 
-# For private repos, we need to get the asset ID and use the API to download.
-ASSET_ID=$(curl -fsSL -H "$AUTH_HEADER" "https://api.github.com/repos/${REPO}/releases/latest" \
-  | grep -B 3 "\"name\": \"${ARCHIVE}\"" \
-  | grep '"id"' \
-  | head -1 \
-  | sed -E 's/.*: ([0-9]+).*/\1/')
+# --- Resolve release ---
+# Helper: download a release asset by tag name.
+# Sets ASSET_ID for the matching archive in the release.
+fetch_release_assets() {
+  local tag="$1"
+  local release_json
+  release_json=$(curl -fsSL -H "$AUTH_HEADER" \
+    -H "Accept: application/vnd.github+json" \
+    "${API_BASE}/releases/tags/${tag}")
 
-if [ -z "$ASSET_ID" ]; then
-  echo "Error: could not find release asset '${ARCHIVE}'" >&2
-  echo "Available assets for ${LATEST}:" >&2
-  curl -fsSL -H "$AUTH_HEADER" "https://api.github.com/repos/${REPO}/releases/latest" \
-    | grep '"name"' | sed -E 's/.*"name": "(.*)".*/  \1/' >&2
-  exit 1
+  ASSET_ID=$(echo "$release_json" \
+    | grep -B 3 "\"name\": \"${ARCHIVE}\"" \
+    | grep '"id"' \
+    | head -1 \
+    | sed -E 's/.*: ([0-9]+).*/\1/')
+
+  if [ -z "$ASSET_ID" ]; then
+    echo "Error: could not find asset '${ARCHIVE}' in release ${tag}" >&2
+    echo "Available assets:" >&2
+    echo "$release_json" | grep '"name"' | sed -E 's/.*"name": "(.*)".*/  \1/' >&2
+    exit 1
+  fi
+}
+
+if [ -n "$TARGET_VERSION" ]; then
+  # Strip leading 'v' if user included it.
+  TARGET_VERSION="${TARGET_VERSION#v}"
+  TAG="v${TARGET_VERSION}"
+  echo "Fetching release ${TAG}..."
+  fetch_release_assets "$TAG"
+else
+  # Find the latest stable release (tag matching v*.*.*-stable).
+  echo "Fetching latest stable release..."
+  # GitHub's /releases/latest returns the release marked as "latest", but
+  # that may be a pre-release if it's the only one. We filter by listing all
+  # releases and finding the newest non-prerelease with a -stable tag.
+  RELEASES_JSON=$(curl -fsSL -H "$AUTH_HEADER" \
+    -H "Accept: application/vnd.github+json" \
+    "${API_BASE}/releases?per_page=30")
+
+  TAG=$(echo "$RELEASES_JSON" \
+    | grep -E '"tag_name": "v[0-9]+\.[0-9]+\.[0-9]+-stable"' \
+    | head -1 \
+    | sed -E 's/.*"tag_name": "([^"]+)".*/\1/')
+
+  if [ -z "$TAG" ]; then
+    echo "Error: no stable release found (tag matching v*.*.*-stable)." >&2
+    echo "Available releases:" >&2
+    echo "$RELEASES_JSON" | grep '"tag_name"' | sed -E 's/.*"tag_name": "(.*)".*/  \1/' >&2
+    echo "" >&2
+    echo "You can install a specific version with: $0 --version <version>" >&2
+    exit 1
+  fi
+
+  echo "Latest stable version: ${TAG}"
+  fetch_release_assets "$TAG"
 fi
 
+# --- Download ---
 echo "Downloading ${ARCHIVE}..."
 TMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TMP_DIR"' EXIT
@@ -88,12 +157,12 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 curl -fsSL \
   -H "$AUTH_HEADER" \
   -H "Accept: application/octet-stream" \
-  "https://api.github.com/repos/${REPO}/releases/assets/${ASSET_ID}" \
+  "${API_BASE}/releases/assets/${ASSET_ID}" \
   -o "${TMP_DIR}/${ARCHIVE}"
 
 tar -xzf "${TMP_DIR}/${ARCHIVE}" -C "$TMP_DIR"
 
-# Install.
+# --- Install ---
 if [ -w "$INSTALL_DIR" ]; then
   mv "${TMP_DIR}/${BINARY}" "${INSTALL_DIR}/${BINARY}"
 else
@@ -104,6 +173,6 @@ fi
 chmod +x "${INSTALL_DIR}/${BINARY}"
 
 echo ""
-echo "cashea-auth ${LATEST} installed to ${INSTALL_DIR}/${BINARY}"
+echo "cashea-auth ${TAG} installed to ${INSTALL_DIR}/${BINARY}"
 echo ""
 echo "Next step: run 'cashea-auth init' to set up your Firebase credentials."
