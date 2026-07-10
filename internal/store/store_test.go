@@ -14,8 +14,8 @@ func setupTestDir(t *testing.T) string {
 	t.Helper()
 	tmp := t.TempDir()
 	t.Setenv("HOME", tmp)
-	// Create the .cashea-auth dir inside the temp home.
-	dir := filepath.Join(tmp, ".cashea-auth")
+	// Create the .fireauth dir inside the temp home.
+	dir := filepath.Join(tmp, ".fireauth")
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		t.Fatal(err)
 	}
@@ -546,8 +546,8 @@ func TestProjectJSON_RoundTrip(t *testing.T) {
 	p := &Project{
 		Name:               "production",
 		FirebaseAPIKey:     "AIzaSy_test",
-		ServiceAccountPath: "/home/user/.cashea-auth/projects/production/service-account.json",
-		ActiveSession:      "dev@cashea.com",
+		ServiceAccountPath: "/home/user/.fireauthojects/production/service-account.json",
+		ActiveSession:      "dev@example.com",
 	}
 	data, err := json.Marshal(p)
 	if err != nil {
@@ -691,5 +691,5 @@ func filepathGlob(projectName string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(home, ".cashea-auth", "projects", projectName), nil
+	return filepath.Join(home, ".fireauth", "projects", projectName), nil
 }

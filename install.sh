@@ -1,27 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO="cashea-bnpl/auth-devtools"
-BINARY="cashea-auth"
+REPO="andrespd99/fireauth"
+BINARY="fireauth"
 INSTALL_DIR="/usr/local/bin"
-
-# --- GitHub token (required for private repos) ---
-if [ -z "${GITHUB_TOKEN:-}" ]; then
-  # Try gh CLI token as fallback.
-  if command -v gh &>/dev/null; then
-    GITHUB_TOKEN=$(gh auth token 2>/dev/null || true)
-  fi
-fi
-
-if [ -z "${GITHUB_TOKEN:-}" ]; then
-  echo "Error: GITHUB_TOKEN is required (private repo)." >&2
-  echo "" >&2
-  echo "Option 1: export GITHUB_TOKEN=ghp_..." >&2
-  echo "Option 2: install gh CLI and run 'gh auth login'" >&2
-  exit 1
-fi
-
-AUTH_HEADER="Authorization: token ${GITHUB_TOKEN}"
 
 # Detect OS and architecture.
 OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
@@ -49,11 +31,11 @@ echo "Detected: ${OS}/${ARCH}"
 
 # Get the latest release tag.
 echo "Fetching latest release..."
-LATEST=$(curl -fsSL -H "$AUTH_HEADER" "https://api.github.com/repos/${REPO}/releases/latest" | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
+LATEST=$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
 
 if [ -z "$LATEST" ]; then
   echo "Error: could not determine latest release." >&2
-  echo "Check https://github.com/${REPO}/releases or verify your GITHUB_TOKEN has repo access." >&2
+  echo "Check https://github.com/${REPO}/releases" >&2
   exit 1
 fi
 
@@ -61,22 +43,15 @@ echo "Latest version: ${LATEST}"
 
 # Find the asset download URL for this OS/arch.
 ARCHIVE="${BINARY}_${OS}_${ARCH}.tar.gz"
-ASSET_URL=$(curl -fsSL -H "$AUTH_HEADER" "https://api.github.com/repos/${REPO}/releases/latest" \
-  | grep -o "\"url\": \"https://api.github.com/repos/${REPO}/releases/assets/[0-9]*\"" \
+ASSET_URL=$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" \
+  | grep -o "\"browser_download_url\": \"https://[^\"]*${ARCHIVE}\"" \
   | head -1 \
-  | sed -E 's/"url": "(.*)"/\1/')
+  | sed -E 's/.*"browser_download_url": "(.*)"/\1/')
 
-# For private repos, we need to get the asset ID and use the API to download.
-ASSET_ID=$(curl -fsSL -H "$AUTH_HEADER" "https://api.github.com/repos/${REPO}/releases/latest" \
-  | grep -B 3 "\"name\": \"${ARCHIVE}\"" \
-  | grep '"id"' \
-  | head -1 \
-  | sed -E 's/.*: ([0-9]+).*/\1/')
-
-if [ -z "$ASSET_ID" ]; then
+if [ -z "$ASSET_URL" ]; then
   echo "Error: could not find release asset '${ARCHIVE}'" >&2
   echo "Available assets for ${LATEST}:" >&2
-  curl -fsSL -H "$AUTH_HEADER" "https://api.github.com/repos/${REPO}/releases/latest" \
+  curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" \
     | grep '"name"' | sed -E 's/.*"name": "(.*)".*/  \1/' >&2
   exit 1
 fi
@@ -85,11 +60,7 @@ echo "Downloading ${ARCHIVE}..."
 TMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TMP_DIR"' EXIT
 
-curl -fsSL \
-  -H "$AUTH_HEADER" \
-  -H "Accept: application/octet-stream" \
-  "https://api.github.com/repos/${REPO}/releases/assets/${ASSET_ID}" \
-  -o "${TMP_DIR}/${ARCHIVE}"
+curl -fsSL -o "${TMP_DIR}/${ARCHIVE}" "$ASSET_URL"
 
 tar -xzf "${TMP_DIR}/${ARCHIVE}" -C "$TMP_DIR"
 
@@ -104,6 +75,6 @@ fi
 chmod +x "${INSTALL_DIR}/${BINARY}"
 
 echo ""
-echo "cashea-auth ${LATEST} installed to ${INSTALL_DIR}/${BINARY}"
+echo "fireauth ${LATEST} installed to ${INSTALL_DIR}/${BINARY}"
 echo ""
-echo "Next step: run 'cashea-auth init' to set up your Firebase credentials."
+echo "Next step: run 'fireauth init' to set up your Firebase credentials."

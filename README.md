@@ -1,4 +1,4 @@
-# cashea-auth
+# fireauth
 
 CLI tool for authenticating against Firebase and managing bearer tokens for REST API testing.
 
@@ -11,20 +11,8 @@ Instead of manually grabbing tokens from the frontend, run a command and get eve
 
 ## Install
 
-Since this is a private repo, you need GitHub access. The easiest way is via the `gh` CLI:
-
 ```bash
-# If you have gh CLI installed and authenticated:
-curl -sSL "https://raw.githubusercontent.com/cashea-bnpl/auth-devtools/main/install.sh" \
-  -H "Authorization: token $(gh auth token)" | bash
-```
-
-Or with a personal access token:
-
-```bash
-export GITHUB_TOKEN=ghp_your_token_here
-curl -sSL "https://raw.githubusercontent.com/cashea-bnpl/auth-devtools/main/install.sh" \
-  -H "Authorization: token $GITHUB_TOKEN" | bash
+curl -sSL "https://raw.githubusercontent.com/andrespd99/fireauth/main/install.sh" | bash
 ```
 
 The script auto-detects your OS/architecture, downloads the right binary, and installs it. No Go needed.
@@ -34,10 +22,10 @@ The script auto-detects your OS/architecture, downloads the right binary, and in
 If you prefer to build from source (requires [Go 1.21+](https://go.dev/dl/) and [Task](https://taskfile.dev/)):
 
 ```bash
-git clone git@github.com:cashea-bnpl/auth-devtools.git
-cd auth-devtools
+git clone https://github.com/andrespd99/fireauth.git
+cd fireauth
 task build
-cp cashea-auth /usr/local/bin/
+cp fireauth /usr/local/bin/
 ```
 
 ## Setup
@@ -45,31 +33,31 @@ cp cashea-auth /usr/local/bin/
 Run the setup wizard to configure your first Firebase project:
 
 ```bash
-cashea-auth init
+fireauth init
 ```
 
 This will prompt for:
 1. Your Firebase Web API Key
 2. Path to the service account JSON file
 
-The service account JSON is copied into `~/.cashea-auth/projects/<name>/` so the original can be safely deleted from Downloads. The project name defaults to the `project_id` from the service account JSON.
+The service account JSON is copied into `~/.fireauth/projects/<name>/` so the original can be safely deleted from Downloads. The project name defaults to the `project_id` from the service account JSON.
 
 For non-interactive setup (e.g., scripting):
 
 ```bash
-cashea-auth init --api-key "AIzaSy..." --service-account ~/path/to/service-account.json
+fireauth init --api-key "AIzaSy..." --service-account ~/path/to/service-account.json
 ```
 
 You can also specify the project name explicitly:
 
 ```bash
-cashea-auth init staging --api-key "AIzaSy..." --service-account ~/path/to/staging-sa.json
-cashea-auth init production --api-key "AIzaSy..." --service-account ~/path/to/prod-sa.json
+fireauth init staging --api-key "AIzaSy..." --service-account ~/path/to/staging-sa.json
+fireauth init production --api-key "AIzaSy..." --service-account ~/path/to/prod-sa.json
 ```
 
 ### Migrating from single-project
 
-If you were already using `cashea-auth` with the old single-project config, your existing setup is automatically migrated to a `default` project the first time you run any command. No action needed.
+If you were already using `fireauth` with the old single-project config, your existing setup is automatically migrated to a `default` project the first time you run any command. No action needed.
 
 ## Usage
 
@@ -79,66 +67,66 @@ You can configure as many Firebase projects as you need (e.g., staging and produ
 
 ```bash
 # List all configured projects
-cashea-auth project list
+fireauth project list
 
 # Switch the active project (interactive picker)
-cashea-auth project use
+fireauth project use
 
 # Switch directly
-cashea-auth project use production
+fireauth project use production
 
 # Remove a project
-cashea-auth project remove staging
+fireauth project remove staging
 
 # Rename a project
-cashea-auth project rename staging dev
+fireauth project rename staging dev
 ```
 
 You can also override the active project for a single command using the global `--project` flag — perfect for scripting:
 
 ```bash
 # Get a token from production without switching
-cashea-auth --project production token
+fireauth --project production token
 
 # Log in against staging
-cashea-auth --project staging login
+fireauth --project staging login
 
 # Check who you are in production
-cashea-auth --project production me
+fireauth --project production me
 ```
 
 ### Sign in
 
 ```bash
-cashea-auth login
+fireauth login
 ```
 
 Or non-interactively:
 
 ```bash
-cashea-auth login --email user@example.com --password "..."
+fireauth login --email user@example.com --password "..."
 ```
 
 ### Get a bearer token
 
 ```bash
 # Print token to stdout (pipe-friendly)
-cashea-auth token
+fireauth token
 
 # Use directly with curl
-curl -H "Authorization: Bearer $(cashea-auth token)" https://api.cashea.com/users/me
+curl -H "Authorization: Bearer $(fireauth token)" https://api.example.com/users/me
 
 # Get a token from a specific project
-curl -H "Authorization: Bearer $(cashea-auth --project production token)" https://api.cashea.com/users/me
+curl -H "Authorization: Bearer $(fireauth --project production token)" https://api.example.com/users/me
 
 # Print as full header
-cashea-auth token --header
+fireauth token --header
 
 # Copy to clipboard (macOS)
-cashea-auth token --copy
+fireauth token --copy
 
 # Force refresh even if not expired
-cashea-auth token --refresh
+fireauth token --refresh
 ```
 
 Tokens auto-refresh when expired or within 5 minutes of expiry.
@@ -146,13 +134,13 @@ Tokens auto-refresh when expired or within 5 minutes of expiry.
 ### View current user
 
 ```bash
-cashea-auth me
+fireauth me
 
 # JSON output
-cashea-auth me --json
+fireauth me --json
 ```
 
-Also available as `cashea-auth whoami`.
+Also available as `fireauth whoami`.
 
 ### Manage multiple sessions
 
@@ -160,44 +148,106 @@ Sessions are per-project. Switching projects preserves the sessions within each 
 
 ```bash
 # List all stored sessions for the active project
-cashea-auth sessions
+fireauth sessions
 
 # Switch active session (interactive picker)
-cashea-auth switch
+fireauth switch
 
 # Switch directly
-cashea-auth switch other@example.com
+fireauth switch other@example.com
 
 # Remove a session
-cashea-auth logout
-cashea-auth logout other@example.com
+fireauth logout
+fireauth logout other@example.com
 ```
 
 ### Updating
 
 ```bash
 # Update to the latest version
-cashea-auth update
+fireauth update
 
 # Check for updates without installing
-cashea-auth update --check
+fireauth update --check
 ```
-
-Requires `GITHUB_TOKEN` or `gh` CLI (same as install).
 
 ### Use with Postman
 
-> [!NOTE]
-> Coming soon... Postman does not allow child_process calls in pre-request scripts, so it cannot call this tool automatically. But there's a work-around: Because Postman pre-request scripts can make HTTP request, we can start an http server and call a served path to get the bearer token. But I think this tool is already a good MVP and I'm tired boss 🚬
+Since Postman pre-request scripts cannot spawn child processes, `fireauth`
+includes a built-in HTTP server you can start locally. Postman scripts call
+the server over HTTP to fetch the bearer token automatically.
+
+#### 1. Start the server
+
+```bash
+fireauth serve
+```
+
+By default it listens on `http://127.0.0.1:9876` (localhost only — no remote
+access). Use `--addr` to change the port:
+
+```bash
+fireauth serve --addr 127.0.0.1:9877
+```
+
+#### 2. Endpoints
+
+| Method | Path       | Description                                              |
+| ------ | ---------- | -------------------------------------------------------- |
+| `GET`  | `/health`  | Health check (`{"status":"ok","version":"..."}`)       |
+| `GET`  | `/token`   | Returns the bearer token for the active session          |
+| `GET`  | `/me`      | Returns JSON user details for the active session         |
+
+All endpoints accept an optional `?project=` query parameter to override the
+active project for that request.
+
+**`/token` query parameters:**
+
+| Param     | Default | Description                                              |
+| --------- | ------- | -------------------------------------------------------- |
+| `project` | (active)| Override the active project                              |
+| `refresh` | `false` | Force token refresh (`true`/`false`)                     |
+| `format`  | (bare)  | Set to `header` to get `Authorization: Bearer <token>`   |
+
+#### 3. Postman pre-request script
+
+Add this to your collection's **Pre-request Script** tab (or per-request if
+you prefer):
+
+```javascript
+// Fetch a fresh bearer token from fireauth and set it as the Authorization header.
+pm.sendRequest({
+    url: "http://127.0.0.1:9876/token",
+    method: "GET"
+}, function (err, response) {
+    if (err) {
+        console.log("fireauth: request failed — is the server running? (fireauth serve)");
+        throw err;
+    }
+    if (response.code !== 200) {
+        console.log("fireauth: " + response.text());
+        throw new Error("Failed to fetch token from fireauth");
+    }
+    pm.request.headers.upsert({
+        key: "Authorization",
+        value: "Bearer " + response.text()
+    });
+});
+```
+
+> [!TIP]
+> If you work with multiple Firebase projects, add `?project=production` (or
+> the project name) to the URL in the script to target a specific project
+> without switching the active one.
 
 ### Debugging
 
 Add `--verbose` to any command to see debug logs (HTTP calls, file I/O, token refresh decisions):
 
 ```bash
-cashea-auth --verbose login
-cashea-auth --verbose token
-cashea-auth --verbose project list
+fireauth --verbose login
+fireauth --verbose token
+fireauth --verbose project list
 ```
 
 ## Commands
@@ -215,14 +265,15 @@ cashea-auth --verbose project list
 | `sessions`       | List all stored sessions for the active project |
 | `switch`         | Switch active session                           |
 | `logout`         | Remove a stored session                         |
+| `serve`          | Start a local HTTP server for Postman           |
 | `update`         | Self-update to the latest release               |
 
 ## Local storage
 
-All data is stored in `~/.cashea-auth/` with restricted permissions (0700/0600):
+All data is stored in `~/.fireauth/` with restricted permissions (0700/0600):
 
 ```
-~/.cashea-auth/
+~/.fireauth/
 ├── config.json                          # Global config (active project)
 └── projects/
     ├── staging/
