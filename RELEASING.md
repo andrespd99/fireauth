@@ -1,4 +1,4 @@
-# Releasing cashea-auth
+# Releasing fireauth
 
 Releases are triggered manually via a GitHub Actions workflow. There are no
 local tag pushes — the workflow checks out `main`, creates the tag, builds,
@@ -12,7 +12,7 @@ and publishes the release all in one step.
 ## Steps
 
 1. Go to **Actions** → **Release** → **Run workflow** in the GitHub UI:
-   [github.com/cashea-bnpl/auth-devtools/actions/workflows/release.yml](https://github.com/cashea-bnpl/auth-devtools/actions/workflows/release.yml)
+   [github.com/andrespd99/fireauth/actions/workflows/release.yml](https://github.com/andrespd99/fireauth/actions/workflows/release.yml)
 
 2. Enter the version (without `v` prefix):
    - **Stable**: `0.3.0-stable`
@@ -42,19 +42,32 @@ Follow [semantic versioning](https://semver.org):
 - **Major** (`1.0.0-stable`) — breaking changes
 - **Pre-release** (`0.4.0-alpha.1`) — testing before stable
 
-## What the install script installs
+## Installing
+
+### Homebrew (recommended)
+
+```bash
+brew tap andrespd99/fireauth
+brew install fireauth
+```
+
+To upgrade later:
+
+```bash
+brew upgrade fireauth
+```
+
+### Install script
 
 `install.sh` defaults to the latest **stable** release (tag matching
 `v*.*.*-stable`). To install a specific version:
 
 ```bash
 # Latest stable (default)
-curl -sSL "https://raw.githubusercontent.com/cashea-bnpl/auth-devtools/main/install.sh" \
-  -H "Authorization: token $(gh auth token)" | bash
+curl -sSL "https://raw.githubusercontent.com/andrespd99/fireauth/main/install.sh" | bash
 
 # Specific version (including pre-releases)
-curl -sSL "https://raw.githubusercontent.com/cashea-bnpl/auth-devtools/main/install.sh" \
-  -H "Authorization: token $(gh auth token)" | bash -s -- --version 0.3.0-alpha.1
+curl -sSL "https://raw.githubusercontent.com/andrespd99/fireauth/main/install.sh" | bash -s -- --version 0.3.0-alpha.1
 ```
 
 ## Local dry run (optional)

@@ -7,8 +7,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/cashea-bnpl/auth-devtools/internal/config"
-	"github.com/cashea-bnpl/auth-devtools/internal/logger"
+	"github.com/andrespd99/fireauth/internal/config"
+	"github.com/andrespd99/fireauth/internal/logger"
 )
 
 const (
@@ -32,7 +32,7 @@ func LoadConfig() (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("config not found — run 'cashea-auth init' first")
+			return nil, fmt.Errorf("config not found — run 'fireauth init' first")
 		}
 		return nil, err
 	}
@@ -204,7 +204,7 @@ func GetActiveProjectName() (string, error) {
 		return "", err
 	}
 	if cfg.ActiveProject == "" {
-		return "", errors.New("no active project — run 'cashea-auth project use <name>'")
+		return "", errors.New("no active project — run 'fireauth project use <name>'")
 	}
 	return cfg.ActiveProject, nil
 }
@@ -387,7 +387,7 @@ func GetSession(projectName, email string) (*Project, *Session, error) {
 		email = p.ActiveSession
 	}
 	if email == "" {
-		return nil, nil, errors.New("no active session — run 'cashea-auth login' first")
+		return nil, nil, errors.New("no active session — run 'fireauth login' first")
 	}
 
 	sessions, err := LoadSessions(projectName)
@@ -397,7 +397,7 @@ func GetSession(projectName, email string) (*Project, *Session, error) {
 
 	sess, ok := sessions[email]
 	if !ok {
-		return nil, nil, fmt.Errorf("session %q not found in project %q — run 'cashea-auth login'", email, projectName)
+		return nil, nil, fmt.Errorf("session %q not found in project %q — run 'fireauth login'", email, projectName)
 	}
 
 	logger.Debug("active session resolved", "project", projectName, "email", sess.Email, "uid", sess.UID)

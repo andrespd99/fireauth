@@ -7,8 +7,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/cashea-bnpl/auth-devtools/internal/logger"
-	"github.com/cashea-bnpl/auth-devtools/internal/store"
+	"github.com/andrespd99/fireauth/internal/logger"
+	"github.com/andrespd99/fireauth/internal/store"
 	"github.com/spf13/cobra"
 )
 
@@ -64,7 +64,7 @@ func runProjectList(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	if len(projects) == 0 {
-		fmt.Println("No projects configured. Run 'cashea-auth init' to add one.")
+		fmt.Println("No projects configured. Run 'fireauth init' to add one.")
 		return nil
 	}
 
@@ -103,7 +103,7 @@ func runProjectUse(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	if len(projects) == 0 {
-		return fmt.Errorf("no projects configured — run 'cashea-auth init' first")
+		return fmt.Errorf("no projects configured — run 'fireauth init' first")
 	}
 
 	var target string
@@ -217,7 +217,7 @@ func runProjectRemove(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(projects) == 1 {
-		return fmt.Errorf("cannot remove the only remaining project — add another first with 'cashea-auth init'")
+		return fmt.Errorf("cannot remove the only remaining project — add another first with 'fireauth init'")
 	}
 
 	if err := store.DeleteProject(target); err != nil {
