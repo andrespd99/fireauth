@@ -17,6 +17,13 @@ curl -sSL "https://raw.githubusercontent.com/andrespd99/fireauth/main/install.sh
 
 The script auto-detects your OS/architecture, downloads the right binary, and installs it. No Go needed.
 
+To install a specific version (e.g. a pre-release):
+
+```bash
+curl -sSL "https://raw.githubusercontent.com/cashea-bnpl/auth-devtools/main/install.sh" \
+  -H "Authorization: token $(gh auth token)" | bash -s -- --version 0.3.0-alpha.1
+```
+
 ### Build from source
 
 If you prefer to build from source (requires [Go 1.21+](https://go.dev/dl/) and [Task](https://taskfile.dev/)):

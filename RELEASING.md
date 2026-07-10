@@ -1,48 +1,74 @@
 # Releasing fireauth
 
-Releases are fully automated via [goreleaser](https://goreleaser.com) and a
-GitHub Actions workflow. To cut a new release you only need to push a tag.
+Releases are triggered manually via a GitHub Actions workflow. There are no
+local tag pushes — the workflow checks out `main`, creates the tag, builds,
+and publishes the release all in one step.
 
 ## Prerequisites
 
 - All changes you want in the release must be merged into `main`.
-- The working tree should be clean and up to date with `origin/main`.
+- Ensure `main` is green (CI passing).
 
 ## Steps
 
-1. Ensure `main` is up to date:
+1. Go to **Actions** → **Release** → **Run workflow** in the GitHub UI:
+   [github.com/andrespd99/fireauth/actions/workflows/release.yml](https://github.com/andrespd99/fireauth/actions/workflows/release.yml)
 
-   ```bash
-   git checkout main
-   git pull origin main
-   ```
+2. Enter the version (without `v` prefix):
+   - **Stable**: `0.3.0-stable`
+   - **Pre-release**: `0.3.0-alpha.1`, `0.3.0-beta.1`, etc.
 
-2. Create a tag matching the `v*` pattern (the release workflow only fires on
-   tags starting with `v`):
+3. If it's a pre-release, check the **"Mark as pre-release"** checkbox so it
+   won't show as the latest release (and the install script won't pick it up
+   by default).
 
-   ```bash
-   git tag v0.3.0
-   ```
+4. Click **Run workflow**.
 
-   Use [semantic versioning](https://semver.org):
-   - **Patch** (`v0.3.1`) — bug fixes
-   - **Minor** (`v0.4.0`) — new features, backward compatible
-   - **Major** (`v1.0.0`) — breaking changes
+The workflow will:
+- Validate the version format (`X.Y.Z` or `X.Y.Z-prerelease`)
+- Reject if a tag for that version already exists
+- Check out the latest commit on `main` (always current, never stale)
+- Create and push the tag automatically
+- Build binaries for `darwin` and `linux` (`amd64` + `arm64`) via goreleaser
+- Create a GitHub Release with all assets and checksums
+- If marked as pre-release, update it accordingly
 
-3. Push the tag:
+## Versioning
 
-   ```bash
-   git push origin v0.3.0
-   ```
+Follow [semantic versioning](https://semver.org):
 
-4. The [Release workflow](.github/workflows/release.yml) runs automatically:
-   - goreleaser builds binaries for `darwin` and `linux` (`amd64` + `arm64`)
-   - Archives are uploaded as `fireauth_<os>_<arch>.tar.gz`
-   - A `checksums.txt` file is generated
-   - A GitHub Release is created with the tag name and all assets
+- **Patch** (`0.3.1-stable`) — bug fixes
+- **Minor** (`0.4.0-stable`) — new features, backward compatible
+- **Major** (`1.0.0-stable`) — breaking changes
+- **Pre-release** (`0.4.0-alpha.1`) — testing before stable
 
-5. Verify the release on
-   [github.com/andrespd99/fireauth/releases](https://github.com/andrespd99/fireauth/releases).
+## Installing
+
+### Homebrew (recommended)
+
+```bash
+brew tap andrespd99/fireauth
+brew install fireauth
+```
+
+To upgrade later:
+
+```bash
+brew upgrade fireauth
+```
+
+### Install script
+
+`install.sh` defaults to the latest **stable** release (tag matching
+`v*.*.*-stable`). To install a specific version:
+
+```bash
+# Latest stable (default)
+curl -sSL "https://raw.githubusercontent.com/andrespd99/fireauth/main/install.sh" | bash
+
+# Specific version (including pre-releases)
+curl -sSL "https://raw.githubusercontent.com/andrespd99/fireauth/main/install.sh" | bash -s -- --version 0.3.0-alpha.1
+```
 
 ## Local dry run (optional)
 
@@ -53,10 +79,3 @@ goreleaser release --clean --snapshot
 ```
 
 This builds all targets and writes them to `dist/` but skips publishing.
-
-## How the install script works
-
-`install.sh` fetches `/releases/latest` from the GitHub API, finds the asset
-matching the user's OS/arch, and downloads it. Because of this, `install.sh`
-always installs the most recent tag — no changes needed when cutting a new
-release.

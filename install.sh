@@ -4,6 +4,46 @@ set -euo pipefail
 REPO="andrespd99/fireauth"
 BINARY="fireauth"
 INSTALL_DIR="/usr/local/bin"
+API_BASE="https://api.github.com/repos/${REPO}"
+
+# --- Parse arguments ---
+TARGET_VERSION=""
+
+usage() {
+  cat <<EOF
+Usage: $0 [OPTIONS]
+
+Install fireauth from GitHub releases.
+
+Options:
+  --version <ver>   Install a specific version (e.g. 0.3.0, 0.3.0-alpha.1)
+                    If omitted, installs the latest stable release.
+  --help            Show this help message.
+
+Examples:
+  $0                          # Install latest stable
+  $0 --version 0.3.0-stable    # Install a specific stable release
+  $0 --version 0.3.0-alpha.1   # Install a pre-release
+EOF
+}
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --version)
+      TARGET_VERSION="$2"
+      shift 2
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "Error: unknown option: $1" >&2
+      usage >&2
+      exit 1
+      ;;
+  esac
+done
 
 # Detect OS and architecture.
 OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
@@ -29,33 +69,62 @@ esac
 
 echo "Detected: ${OS}/${ARCH}"
 
-# Get the latest release tag.
-echo "Fetching latest release..."
-LATEST=$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
-
-if [ -z "$LATEST" ]; then
-  echo "Error: could not determine latest release." >&2
-  echo "Check https://github.com/${REPO}/releases" >&2
-  exit 1
-fi
-
-echo "Latest version: ${LATEST}"
-
-# Find the asset download URL for this OS/arch.
 ARCHIVE="${BINARY}_${OS}_${ARCH}.tar.gz"
-ASSET_URL=$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" \
-  | grep -o "\"browser_download_url\": \"https://[^\"]*${ARCHIVE}\"" \
-  | head -1 \
-  | sed -E 's/.*"browser_download_url": "(.*)"/\1/')
 
-if [ -z "$ASSET_URL" ]; then
-  echo "Error: could not find release asset '${ARCHIVE}'" >&2
-  echo "Available assets for ${LATEST}:" >&2
-  curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" \
-    | grep '"name"' | sed -E 's/.*"name": "(.*)".*/  \1/' >&2
-  exit 1
+# --- Resolve release ---
+if [ -n "$TARGET_VERSION" ]; then
+  # Strip leading 'v' if user included it.
+  TARGET_VERSION="${TARGET_VERSION#v}"
+  TAG="v${TARGET_VERSION}"
+  echo "Fetching release ${TAG}..."
+  ASSET_URL=$(curl -fsSL \
+    -H "Accept: application/vnd.github+json" \
+    "${API_BASE}/releases/tags/${TAG}" \
+    | grep -o "\"browser_download_url\": \"https://[^\"]*${ARCHIVE}\"" \
+    | head -1 \
+    | sed -E 's/.*"browser_download_url": "(.*)"/\1/')
+
+  if [ -z "$ASSET_URL" ]; then
+    echo "Error: could not find asset '${ARCHIVE}' in release ${TAG}" >&2
+    echo "Available assets:" >&2
+    curl -fsSL "${API_BASE}/releases/tags/${TAG}" \
+      | grep '"name"' | sed -E 's/.*"name": "(.*)".*/  \1/' >&2
+    exit 1
+  fi
+else
+  # Find the latest stable release (tag matching v*.*.*-stable).
+  echo "Fetching latest stable release..."
+  RELEASES_JSON=$(curl -fsSL \
+    -H "Accept: application/vnd.github+json" \
+    "${API_BASE}/releases?per_page=30")
+
+  TAG=$(echo "$RELEASES_JSON" \
+    | grep -E '"tag_name": "v[0-9]+\.[0-9]+\.[0-9]+-stable"' \
+    | head -1 \
+    | sed -E 's/.*"tag_name": "([^"]+)".*/\1/')
+
+  if [ -z "$TAG" ]; then
+    echo "Error: no stable release found (tag matching v*.*.*-stable)." >&2
+    echo "Available releases:" >&2
+    echo "$RELEASES_JSON" | grep '"tag_name"' | sed -E 's/.*"tag_name": "(.*)".*/  \1/' >&2
+    echo "" >&2
+    echo "You can install a specific version with: $0 --version <version>" >&2
+    exit 1
+  fi
+
+  echo "Latest stable version: ${TAG}"
+  ASSET_URL=$(echo "$RELEASES_JSON" \
+    | grep -o "\"browser_download_url\": \"https://[^\"]*${ARCHIVE}\"" \
+    | head -1 \
+    | sed -E 's/.*"browser_download_url": "(.*)"/\1/')
+
+  if [ -z "$ASSET_URL" ]; then
+    echo "Error: could not find asset '${ARCHIVE}' in release ${TAG}" >&2
+    exit 1
+  fi
 fi
 
+# --- Download ---
 echo "Downloading ${ARCHIVE}..."
 TMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TMP_DIR"' EXIT
@@ -64,7 +133,7 @@ curl -fsSL -o "${TMP_DIR}/${ARCHIVE}" "$ASSET_URL"
 
 tar -xzf "${TMP_DIR}/${ARCHIVE}" -C "$TMP_DIR"
 
-# Install.
+# --- Install ---
 if [ -w "$INSTALL_DIR" ]; then
   mv "${TMP_DIR}/${BINARY}" "${INSTALL_DIR}/${BINARY}"
 else
@@ -75,6 +144,6 @@ fi
 chmod +x "${INSTALL_DIR}/${BINARY}"
 
 echo ""
-echo "fireauth ${LATEST} installed to ${INSTALL_DIR}/${BINARY}"
+echo "fireauth ${TAG} installed to ${INSTALL_DIR}/${BINARY}"
 echo ""
 echo "Next step: run 'fireauth init' to set up your Firebase credentials."
