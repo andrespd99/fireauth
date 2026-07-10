@@ -40,3 +40,30 @@ func FilePath(name string) (string, error) {
 	}
 	return filepath.Join(dir, name), nil
 }
+
+// ProjectsDir returns the path to the projects directory (~/.cashea-auth/projects).
+func ProjectsDir() (string, error) {
+	dir, err := Dir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "projects"), nil
+}
+
+// ProjectDir returns the path to a specific project's directory.
+func ProjectDir(name string) (string, error) {
+	pdir, err := ProjectsDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(pdir, name), nil
+}
+
+// ProjectFilePath returns the full path to a file inside a project's directory.
+func ProjectFilePath(projectName, filename string) (string, error) {
+	pdir, err := ProjectDir(projectName)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(pdir, filename), nil
+}

@@ -1,0 +1,5 @@
+# builds
+cashea-auth
+dist/
+bin/
+build/

@@ -33,7 +33,12 @@ func init() {
 }
 
 func runLogin(cmd *cobra.Command, args []string) error {
-	cfg, err := store.LoadConfig()
+	projectName, err := resolveProjectName()
+	if err != nil {
+		return err
+	}
+
+	p, err := store.LoadProject(projectName)
 	if err != nil {
 		return err
 	}
@@ -69,10 +74,10 @@ func runLogin(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("password cannot be empty")
 	}
 
-	logger.Debug("attempting sign-in", "email", email)
+	logger.Debug("attempting sign-in", "project", projectName, "email", email)
 
 	// Sign in via Firebase REST API.
-	result, err := firebase.SignInWithPassword(cfg.FirebaseAPIKey, email, password)
+	result, err := firebase.SignInWithPassword(p.FirebaseAPIKey, email, password)
 	if err != nil {
 		return err
 	}
@@ -86,12 +91,12 @@ func runLogin(cmd *cobra.Command, args []string) error {
 		TokenExpiry:  firebase.TokenExpiry(result.ExpiresIn),
 		DisplayName:  result.DisplayName,
 	}
-	if err := store.UpdateSession(sess); err != nil {
+	if err := store.UpdateSession(projectName, sess); err != nil {
 		return fmt.Errorf("saving session: %w", err)
 	}
 
 	// Set as active session.
-	if err := store.SetActiveSession(sess.Email); err != nil {
+	if err := store.SetActiveSession(projectName, sess.Email); err != nil {
 		return fmt.Errorf("setting active session: %w", err)
 	}
 
@@ -101,6 +106,7 @@ func runLogin(cmd *cobra.Command, args []string) error {
 		fmt.Printf("  Name: %s\n", sess.DisplayName)
 	}
 	fmt.Printf("  UID:  %s\n", sess.UID)
+	fmt.Printf("  Project: %s\n", projectName)
 	fmt.Printf("  Token expires at %s\n", sess.TokenExpiry.Format("15:04:05"))
 	return nil
 }

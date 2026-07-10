@@ -29,13 +29,18 @@ func init() {
 }
 
 func runMe(cmd *cobra.Command, args []string) error {
-	cfg, sess, err := store.GetActiveSession()
+	projectName, err := resolveProjectName()
 	if err != nil {
 		return err
 	}
 
-	logger.Debug("loading admin client", "service_account", cfg.ServiceAccountPath)
-	admin, err := firebase.NewAdminClient(cfg.ServiceAccountPath)
+	p, sess, err := store.GetSession(projectName, "")
+	if err != nil {
+		return err
+	}
+
+	logger.Debug("loading admin client", "project", projectName, "service_account", p.ServiceAccountPath)
+	admin, err := firebase.NewAdminClient(p.ServiceAccountPath)
 	if err != nil {
 		return fmt.Errorf("initialising admin client: %w", err)
 	}
@@ -57,16 +62,17 @@ func runMe(cmd *cobra.Command, args []string) error {
 
 	if flagJSON {
 		output := map[string]interface{}{
-			"uid":            user.UID,
-			"email":          user.Email,
-			"email_verified": user.EmailVerified,
-			"display_name":   user.DisplayName,
-			"disabled":       user.Disabled,
-			"custom_claims":  user.CustomClaims,
-			"created_at":     user.CreatedAt.Format(time.RFC3339),
-			"last_sign_in":   user.LastSignIn.Format(time.RFC3339),
-			"providers":      user.Providers,
-			"token_status":   tokenStatus,
+			"project":        projectName,
+			"uid":             user.UID,
+			"email":           user.Email,
+			"email_verified":  user.EmailVerified,
+			"display_name":    user.DisplayName,
+			"disabled":        user.Disabled,
+			"custom_claims":   user.CustomClaims,
+			"created_at":      user.CreatedAt.Format(time.RFC3339),
+			"last_sign_in":    user.LastSignIn.Format(time.RFC3339),
+			"providers":       user.Providers,
+			"token_status":    tokenStatus,
 		}
 		data, _ := json.MarshalIndent(output, "", "  ")
 		fmt.Println(string(data))
@@ -74,6 +80,7 @@ func runMe(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Println()
+	fmt.Printf("  Project:        %s\n", projectName)
 	fmt.Printf("  Email:          %s\n", user.Email)
 	fmt.Printf("  UID:            %s\n", user.UID)
 	fmt.Printf("  Display Name:   %s\n", user.DisplayName)

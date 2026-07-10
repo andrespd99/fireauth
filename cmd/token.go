@@ -39,7 +39,12 @@ func init() {
 }
 
 func runToken(cmd *cobra.Command, args []string) error {
-	cfg, sess, err := store.GetActiveSession()
+	projectName, err := resolveProjectName()
+	if err != nil {
+		return err
+	}
+
+	p, sess, err := store.GetSession(projectName, "")
 	if err != nil {
 		return err
 	}
@@ -57,7 +62,7 @@ func runToken(cmd *cobra.Command, args []string) error {
 				"remaining", time.Until(sess.TokenExpiry).String())
 		}
 
-		result, err := firebase.RefreshIDToken(cfg.FirebaseAPIKey, sess.RefreshToken)
+		result, err := firebase.RefreshIDToken(p.FirebaseAPIKey, sess.RefreshToken)
 		if err != nil {
 			return fmt.Errorf("refreshing token: %w\nRun 'cashea-auth login' to re-authenticate", err)
 		}
@@ -67,7 +72,7 @@ func runToken(cmd *cobra.Command, args []string) error {
 		sess.RefreshToken = result.RefreshToken
 		sess.TokenExpiry = firebase.TokenExpiry(result.ExpiresIn)
 
-		if err := store.UpdateSession(sess); err != nil {
+		if err := store.UpdateSession(projectName, sess); err != nil {
 			return fmt.Errorf("saving refreshed session: %w", err)
 		}
 		logger.Debug("token refreshed", "new_expiry", sess.TokenExpiry.Format(time.RFC3339))
