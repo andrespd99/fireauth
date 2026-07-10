@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/cashea-bnpl/auth-devtools/internal/logger"
@@ -16,7 +15,7 @@ import (
 var switchCmd = &cobra.Command{
 	Use:   "switch [email]",
 	Short: "Switch the active session",
-	Long:  "Switch the active session to a different stored user. If no email is provided, an interactive picker is shown.",
+	Long:  "Switch the active session to a different stored user within the active project. If no email is provided, an interactive picker is shown.",
 	Args:  cobra.MaximumNArgs(1),
 	RunE:  runSwitch,
 }
@@ -26,13 +25,18 @@ func init() {
 }
 
 func runSwitch(cmd *cobra.Command, args []string) error {
-	sessions, err := store.LoadSessions()
+	projectName, err := resolveProjectName()
+	if err != nil {
+		return err
+	}
+
+	sessions, err := store.LoadSessions(projectName)
 	if err != nil {
 		return err
 	}
 
 	if len(sessions) == 0 {
-		return fmt.Errorf("no sessions stored — run 'cashea-auth login' first")
+		return fmt.Errorf("no sessions stored in project %q — run 'cashea-auth login' first", projectName)
 	}
 
 	var targetEmail string
@@ -47,7 +51,7 @@ func runSwitch(cmd *cobra.Command, args []string) error {
 		}
 		sort.Strings(emails)
 
-		cfg, err := store.LoadConfig()
+		p, err := store.LoadProject(projectName)
 		if err != nil {
 			return err
 		}
@@ -55,7 +59,7 @@ func runSwitch(cmd *cobra.Command, args []string) error {
 		fmt.Println()
 		for i, email := range emails {
 			marker := " "
-			if email == cfg.ActiveSession {
+			if email == p.ActiveSession {
 				marker = "*"
 			}
 			fmt.Printf("  %s %d) %s\n", marker, i+1, email)
@@ -69,7 +73,7 @@ func runSwitch(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("reading input: %w", err)
 		}
 
-		num, err := strconv.Atoi(strings.TrimSpace(input))
+		num, err := parseInt(strings.TrimSpace(input))
 		if err != nil || num < 1 || num > len(emails) {
 			return fmt.Errorf("invalid selection")
 		}
@@ -81,12 +85,12 @@ func runSwitch(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("session %q not found — available: %s", targetEmail, availableEmails(sessions))
 	}
 
-	if err := store.SetActiveSession(targetEmail); err != nil {
+	if err := store.SetActiveSession(projectName, targetEmail); err != nil {
 		return err
 	}
 
-	logger.Debug("switched active session", "email", targetEmail)
-	fmt.Printf("✓ Switched to %s\n", targetEmail)
+	logger.Debug("switched active session", "project", projectName, "email", targetEmail)
+	fmt.Printf("✓ Switched to %s (project: %s)\n", targetEmail, projectName)
 	return nil
 }
 

@@ -11,7 +11,7 @@ import (
 var logoutCmd = &cobra.Command{
 	Use:   "logout [email]",
 	Short: "Remove a stored session",
-	Long:  "Remove a stored session. If no email is given, removes the active session.",
+	Long:  "Remove a stored session from the active project. If no email is given, removes the active session.",
 	Args:  cobra.MaximumNArgs(1),
 	RunE:  runLogout,
 }
@@ -21,18 +21,23 @@ func init() {
 }
 
 func runLogout(cmd *cobra.Command, args []string) error {
-	cfg, err := store.LoadConfig()
+	projectName, err := resolveProjectName()
 	if err != nil {
 		return err
 	}
 
-	sessions, err := store.LoadSessions()
+	p, err := store.LoadProject(projectName)
+	if err != nil {
+		return err
+	}
+
+	sessions, err := store.LoadSessions(projectName)
 	if err != nil {
 		return err
 	}
 
 	// Determine which email to remove.
-	targetEmail := cfg.ActiveSession
+	targetEmail := p.ActiveSession
 	if len(args) == 1 {
 		targetEmail = args[0]
 	}
@@ -42,38 +47,28 @@ func runLogout(cmd *cobra.Command, args []string) error {
 	}
 
 	if _, ok := sessions[targetEmail]; !ok {
-		return fmt.Errorf("session %q not found", targetEmail)
+		return fmt.Errorf("session %q not found in project %q", targetEmail, projectName)
 	}
 
 	// Remove the session.
-	delete(sessions, targetEmail)
-	if err := store.SaveSessions(sessions); err != nil {
-		return fmt.Errorf("saving sessions: %w", err)
+	if err := store.DeleteSession(projectName, targetEmail); err != nil {
+		return fmt.Errorf("removing session: %w", err)
 	}
-	logger.Debug("session removed", "email", targetEmail)
+	logger.Debug("session removed", "project", projectName, "email", targetEmail)
 
-	// Update active session if we just removed it.
-	if cfg.ActiveSession == targetEmail {
-		newActive := ""
-		for email := range sessions {
-			newActive = email
-			break
-		}
-		cfg.ActiveSession = newActive
-		if err := store.SaveConfig(cfg); err != nil {
-			return fmt.Errorf("updating config: %w", err)
-		}
-		if newActive != "" {
-			logger.Debug("active session reassigned", "email", newActive)
-		}
+	// Reload project to get updated active session.
+	p, err = store.LoadProject(projectName)
+	if err != nil {
+		return err
 	}
 
 	fmt.Printf("✓ Logged out %s\n", targetEmail)
-	if cfg.ActiveSession != "" && cfg.ActiveSession != targetEmail {
-		fmt.Printf("  Active session: %s\n", cfg.ActiveSession)
-	} else if cfg.ActiveSession == "" && len(sessions) == 0 {
+	if p.ActiveSession != "" && p.ActiveSession != targetEmail {
+		fmt.Printf("  Active session: %s\n", p.ActiveSession)
+	} else if p.ActiveSession == "" {
 		fmt.Println("  No sessions remaining.")
 	}
+	fmt.Printf("  Project: %s\n", projectName)
 
 	return nil
 }
