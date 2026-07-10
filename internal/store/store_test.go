@@ -22,13 +22,32 @@ func setupTestDir(t *testing.T) string {
 	return dir
 }
 
+// setupTestProject creates a project with sessions for testing.
+func setupTestProject(t *testing.T, name string) string {
+	t.Helper()
+	setupTestDir(t)
+
+	p := &Project{
+		Name:               name,
+		FirebaseAPIKey:     "test-api-key",
+		ServiceAccountPath: "/tmp/sa.json",
+	}
+	if err := SaveProject(p); err != nil {
+		t.Fatalf("SaveProject: %v", err)
+	}
+
+	cfg := &Config{ActiveProject: name}
+	if err := SaveConfig(cfg); err != nil {
+		t.Fatalf("SaveConfig: %v", err)
+	}
+	return name
+}
+
 func TestSaveAndLoadConfig(t *testing.T) {
 	setupTestDir(t)
 
 	cfg := &Config{
-		FirebaseAPIKey:     "test-api-key",
-		ServiceAccountPath: "/tmp/sa.json",
-		ActiveSession:      "user@example.com",
+		ActiveProject: "staging",
 	}
 
 	if err := SaveConfig(cfg); err != nil {
@@ -40,14 +59,8 @@ func TestSaveAndLoadConfig(t *testing.T) {
 		t.Fatalf("LoadConfig: %v", err)
 	}
 
-	if loaded.FirebaseAPIKey != cfg.FirebaseAPIKey {
-		t.Errorf("FirebaseAPIKey = %q, want %q", loaded.FirebaseAPIKey, cfg.FirebaseAPIKey)
-	}
-	if loaded.ServiceAccountPath != cfg.ServiceAccountPath {
-		t.Errorf("ServiceAccountPath = %q, want %q", loaded.ServiceAccountPath, cfg.ServiceAccountPath)
-	}
-	if loaded.ActiveSession != cfg.ActiveSession {
-		t.Errorf("ActiveSession = %q, want %q", loaded.ActiveSession, cfg.ActiveSession)
+	if loaded.ActiveProject != cfg.ActiveProject {
+		t.Errorf("ActiveProject = %q, want %q", loaded.ActiveProject, cfg.ActiveProject)
 	}
 }
 
@@ -60,8 +73,98 @@ func TestLoadConfig_NotFound(t *testing.T) {
 	}
 }
 
-func TestSaveAndLoadSessions(t *testing.T) {
+func TestSaveAndLoadProject(t *testing.T) {
 	setupTestDir(t)
+
+	p := &Project{
+		Name:               "staging",
+		FirebaseAPIKey:     "test-api-key",
+		ServiceAccountPath: "/tmp/sa.json",
+		ActiveSession:      "user@example.com",
+	}
+
+	if err := SaveProject(p); err != nil {
+		t.Fatalf("SaveProject: %v", err)
+	}
+
+	loaded, err := LoadProject("staging")
+	if err != nil {
+		t.Fatalf("LoadProject: %v", err)
+	}
+
+	if loaded.FirebaseAPIKey != p.FirebaseAPIKey {
+		t.Errorf("FirebaseAPIKey = %q, want %q", loaded.FirebaseAPIKey, p.FirebaseAPIKey)
+	}
+	if loaded.ServiceAccountPath != p.ServiceAccountPath {
+		t.Errorf("ServiceAccountPath = %q, want %q", loaded.ServiceAccountPath, p.ServiceAccountPath)
+	}
+	if loaded.ActiveSession != p.ActiveSession {
+		t.Errorf("ActiveSession = %q, want %q", loaded.ActiveSession, p.ActiveSession)
+	}
+}
+
+func TestLoadProject_NotFound(t *testing.T) {
+	setupTestDir(t)
+
+	_, err := LoadProject("nonexistent")
+	if err == nil {
+		t.Fatal("expected error when project does not exist")
+	}
+}
+
+func TestListProjects(t *testing.T) {
+	setupTestDir(t)
+
+	p1 := &Project{Name: "staging", FirebaseAPIKey: "key1"}
+	p2 := &Project{Name: "production", FirebaseAPIKey: "key2"}
+	if err := SaveProject(p1); err != nil {
+		t.Fatal(err)
+	}
+	if err := SaveProject(p2); err != nil {
+		t.Fatal(err)
+	}
+
+	projects, err := ListProjects()
+	if err != nil {
+		t.Fatalf("ListProjects: %v", err)
+	}
+	if len(projects) != 2 {
+		t.Fatalf("expected 2 projects, got %d", len(projects))
+	}
+}
+
+func TestListProjects_Empty(t *testing.T) {
+	setupTestDir(t)
+
+	projects, err := ListProjects()
+	if err != nil {
+		t.Fatalf("ListProjects: %v", err)
+	}
+	if len(projects) != 0 {
+		t.Errorf("expected 0 projects, got %d", len(projects))
+	}
+}
+
+func TestDeleteProject(t *testing.T) {
+	setupTestDir(t)
+
+	p := &Project{Name: "staging", FirebaseAPIKey: "key"}
+	if err := SaveProject(p); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := DeleteProject("staging"); err != nil {
+		t.Fatalf("DeleteProject: %v", err)
+	}
+
+	_, err := LoadProject("staging")
+	if err == nil {
+		t.Fatal("expected error after deletion")
+	}
+}
+
+func TestSaveAndLoadSessions(t *testing.T) {
+	projectName := setupTestProject(t, "staging")
 
 	expiry := time.Now().Add(1 * time.Hour).Truncate(time.Second)
 	sessions := Sessions{
@@ -83,11 +186,11 @@ func TestSaveAndLoadSessions(t *testing.T) {
 		},
 	}
 
-	if err := SaveSessions(sessions); err != nil {
+	if err := SaveSessions(projectName, sessions); err != nil {
 		t.Fatalf("SaveSessions: %v", err)
 	}
 
-	loaded, err := LoadSessions()
+	loaded, err := LoadSessions(projectName)
 	if err != nil {
 		t.Fatalf("LoadSessions: %v", err)
 	}
@@ -104,9 +207,9 @@ func TestSaveAndLoadSessions(t *testing.T) {
 }
 
 func TestLoadSessions_Empty(t *testing.T) {
-	setupTestDir(t)
+	projectName := setupTestProject(t, "staging")
 
-	sessions, err := LoadSessions()
+	sessions, err := LoadSessions(projectName)
 	if err != nil {
 		t.Fatalf("LoadSessions: %v", err)
 	}
@@ -124,37 +227,37 @@ func TestGetActiveSession_NoConfig(t *testing.T) {
 	}
 }
 
-func TestGetActiveSession_NoActiveSet(t *testing.T) {
+func TestGetActiveSession_NoActiveProject(t *testing.T) {
 	setupTestDir(t)
 
-	cfg := &Config{FirebaseAPIKey: "key", ServiceAccountPath: "/tmp/sa.json"}
+	cfg := &Config{}
 	if err := SaveConfig(cfg); err != nil {
 		t.Fatal(err)
 	}
 
 	_, _, err := GetActiveSession()
 	if err == nil {
+		t.Fatal("expected error when active_project is empty")
+	}
+}
+
+func TestGetActiveSession_NoActiveSet(t *testing.T) {
+	projectName := setupTestProject(t, "staging")
+
+	_, _, err := GetSession(projectName, "")
+	if err == nil {
 		t.Fatal("expected error when active_session is empty")
 	}
 }
 
 func TestSetActiveSession(t *testing.T) {
-	setupTestDir(t)
+	projectName := setupTestProject(t, "staging")
 
-	cfg := &Config{
-		FirebaseAPIKey:     "key",
-		ServiceAccountPath: "/tmp/sa.json",
-		ActiveSession:      "old@example.com",
-	}
-	if err := SaveConfig(cfg); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := SetActiveSession("new@example.com"); err != nil {
+	if err := SetActiveSession(projectName, "new@example.com"); err != nil {
 		t.Fatalf("SetActiveSession: %v", err)
 	}
 
-	loaded, err := LoadConfig()
+	loaded, err := LoadProject(projectName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -163,10 +266,40 @@ func TestSetActiveSession(t *testing.T) {
 	}
 }
 
+func TestSetActiveProject(t *testing.T) {
+	setupTestDir(t)
+
+	p1 := &Project{Name: "staging", FirebaseAPIKey: "key1"}
+	p2 := &Project{Name: "production", FirebaseAPIKey: "key2"}
+	if err := SaveProject(p1); err != nil {
+		t.Fatal(err)
+	}
+	if err := SaveProject(p2); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := &Config{ActiveProject: "staging"}
+	if err := SaveConfig(cfg); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := SetActiveProject("production"); err != nil {
+		t.Fatalf("SetActiveProject: %v", err)
+	}
+
+	loaded, err := LoadConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.ActiveProject != "production" {
+		t.Errorf("ActiveProject = %q, want %q", loaded.ActiveProject, "production")
+	}
+}
+
 func TestFilePermissions(t *testing.T) {
 	dir := setupTestDir(t)
 
-	cfg := &Config{FirebaseAPIKey: "key", ServiceAccountPath: "/tmp/sa.json"}
+	cfg := &Config{ActiveProject: "staging"}
 	if err := SaveConfig(cfg); err != nil {
 		t.Fatal(err)
 	}
@@ -181,8 +314,27 @@ func TestFilePermissions(t *testing.T) {
 	}
 }
 
-func TestUpdateSession(t *testing.T) {
+func TestProjectFilePermissions(t *testing.T) {
 	setupTestDir(t)
+
+	p := &Project{Name: "staging", FirebaseAPIKey: "key"}
+	if err := SaveProject(p); err != nil {
+		t.Fatal(err)
+	}
+
+	pdir, _ := filepathGlob("staging")
+	info, err := os.Stat(filepath.Join(pdir, "project.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	perm := info.Mode().Perm()
+	if perm != 0600 {
+		t.Errorf("project.json permissions = %o, want 0600", perm)
+	}
+}
+
+func TestUpdateSession(t *testing.T) {
+	projectName := setupTestProject(t, "staging")
 
 	sess := &Session{
 		Email:        "test@example.com",
@@ -193,11 +345,11 @@ func TestUpdateSession(t *testing.T) {
 		DisplayName:  "Test",
 	}
 
-	if err := UpdateSession(sess); err != nil {
+	if err := UpdateSession(projectName, sess); err != nil {
 		t.Fatalf("UpdateSession: %v", err)
 	}
 
-	sessions, err := LoadSessions()
+	sessions, err := LoadSessions(projectName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -207,11 +359,11 @@ func TestUpdateSession(t *testing.T) {
 
 	// Update existing session.
 	sess.DisplayName = "Updated"
-	if err := UpdateSession(sess); err != nil {
+	if err := UpdateSession(projectName, sess); err != nil {
 		t.Fatal(err)
 	}
 
-	sessions, err = LoadSessions()
+	sessions, err = LoadSessions(projectName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -220,11 +372,73 @@ func TestUpdateSession(t *testing.T) {
 	}
 }
 
+func TestDeleteSession(t *testing.T) {
+	projectName := setupTestProject(t, "staging")
+
+	sess1 := &Session{Email: "a@example.com", UID: "uid1"}
+	sess2 := &Session{Email: "b@example.com", UID: "uid2"}
+	if err := UpdateSession(projectName, sess1); err != nil {
+		t.Fatal(err)
+	}
+	if err := UpdateSession(projectName, sess2); err != nil {
+		t.Fatal(err)
+	}
+
+	// Set active session to sess1.
+	if err := SetActiveSession(projectName, "a@example.com"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Delete active session.
+	if err := DeleteSession(projectName, "a@example.com"); err != nil {
+		t.Fatalf("DeleteSession: %v", err)
+	}
+
+	sessions, err := LoadSessions(projectName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := sessions["a@example.com"]; ok {
+		t.Error("session a@example.com should have been deleted")
+	}
+
+	// Active session should have been reassigned.
+	p, err := LoadProject(projectName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.ActiveSession != "b@example.com" {
+		t.Errorf("expected active session reassigned to b@example.com, got %q", p.ActiveSession)
+	}
+}
+
+func TestDeleteSession_LastOne(t *testing.T) {
+	projectName := setupTestProject(t, "staging")
+
+	sess := &Session{Email: "only@example.com", UID: "uid1"}
+	if err := UpdateSession(projectName, sess); err != nil {
+		t.Fatal(err)
+	}
+	if err := SetActiveSession(projectName, "only@example.com"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := DeleteSession(projectName, "only@example.com"); err != nil {
+		t.Fatalf("DeleteSession: %v", err)
+	}
+
+	p, err := LoadProject(projectName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.ActiveSession != "" {
+		t.Errorf("expected empty active session, got %q", p.ActiveSession)
+	}
+}
+
 func TestConfigJSON_RoundTrip(t *testing.T) {
 	cfg := &Config{
-		FirebaseAPIKey:     "AIzaSy_test",
-		ServiceAccountPath: "/home/user/.cashea-auth/service-account.json",
-		ActiveSession:      "dev@cashea.com",
+		ActiveProject: "production",
 	}
 	data, err := json.Marshal(cfg)
 	if err != nil {
@@ -234,7 +448,159 @@ func TestConfigJSON_RoundTrip(t *testing.T) {
 	if err := json.Unmarshal(data, &out); err != nil {
 		t.Fatal(err)
 	}
-	if out != *cfg {
+	if out.ActiveProject != cfg.ActiveProject {
 		t.Errorf("round-trip mismatch: got %+v", out)
 	}
+}
+
+func TestProjectJSON_RoundTrip(t *testing.T) {
+	p := &Project{
+		Name:               "production",
+		FirebaseAPIKey:     "AIzaSy_test",
+		ServiceAccountPath: "/home/user/.cashea-auth/projects/production/service-account.json",
+		ActiveSession:      "dev@cashea.com",
+	}
+	data, err := json.Marshal(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out Project
+	if err := json.Unmarshal(data, &out); err != nil {
+		t.Fatal(err)
+	}
+	if out != *p {
+		t.Errorf("round-trip mismatch: got %+v", out)
+	}
+}
+
+func TestMigrateLegacyConfig(t *testing.T) {
+	dir := setupTestDir(t)
+
+	// Create legacy config.json.
+	legacyCfg := &Config{
+		FirebaseAPIKey:     "AIzaSy_legacy",
+		ServiceAccountPath: filepath.Join(dir, "service-account.json"),
+		ActiveSession:      "user@example.com",
+	}
+	if err := SaveConfig(legacyCfg); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create the service account file in the root dir.
+	if err := os.WriteFile(filepath.Join(dir, "service-account.json"), []byte("{}"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create legacy sessions.json in the root dir.
+	sessions := Sessions{
+		"user@example.com": {
+			Email:        "user@example.com",
+			UID:          "uid1",
+			IDToken:      "token",
+			RefreshToken: "refresh",
+			TokenExpiry:  time.Now().Add(time.Hour),
+		},
+	}
+	sessionsData, _ := json.MarshalIndent(sessions, "", "  ")
+	if err := os.WriteFile(filepath.Join(dir, "sessions.json"), sessionsData, 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	// Run migration.
+	if err := MigrateLegacyConfig(); err != nil {
+		t.Fatalf("MigrateLegacyConfig: %v", err)
+	}
+
+	// Verify global config now has ActiveProject = "default".
+	cfg, err := LoadConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.ActiveProject != "default" {
+		t.Fatalf("expected ActiveProject 'default', got %q", cfg.ActiveProject)
+	}
+
+	// Verify legacy fields are cleared.
+	if cfg.FirebaseAPIKey != "" {
+		t.Errorf("expected legacy FirebaseAPIKey cleared, got %q", cfg.FirebaseAPIKey)
+	}
+
+	// Verify default project exists with the legacy data.
+	p, err := LoadProject("default")
+	if err != nil {
+		t.Fatalf("LoadProject: %v", err)
+	}
+	if p.FirebaseAPIKey != "AIzaSy_legacy" {
+		t.Errorf("expected API key migrated, got %q", p.FirebaseAPIKey)
+	}
+	if p.ActiveSession != "user@example.com" {
+		t.Errorf("expected active session migrated, got %q", p.ActiveSession)
+	}
+
+	// Verify service account file was moved into project dir.
+	if _, err := os.Stat(p.ServiceAccountPath); err != nil {
+		t.Errorf("service account not found at migrated path %q: %v", p.ServiceAccountPath, err)
+	}
+	// And removed from root.
+	if _, err := os.Stat(filepath.Join(dir, "service-account.json")); !os.IsNotExist(err) {
+		t.Error("expected old service account file to be removed from root dir")
+	}
+
+	// Verify sessions were migrated.
+	migratedSessions, err := LoadSessions("default")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(migratedSessions) != 1 {
+		t.Fatalf("expected 1 migrated session, got %d", len(migratedSessions))
+	}
+	if _, ok := migratedSessions["user@example.com"]; !ok {
+		t.Error("expected user@example.com session to be migrated")
+	}
+
+	// Verify old sessions.json is removed from root.
+	if _, err := os.Stat(filepath.Join(dir, "sessions.json")); !os.IsNotExist(err) {
+		t.Error("expected old sessions.json to be removed from root dir")
+	}
+}
+
+func TestMigrateLegacyConfig_AlreadyMigrated(t *testing.T) {
+	setupTestDir(t)
+
+	cfg := &Config{ActiveProject: "staging"}
+	if err := SaveConfig(cfg); err != nil {
+		t.Fatal(err)
+	}
+
+	// Should be a no-op.
+	if err := MigrateLegacyConfig(); err != nil {
+		t.Fatalf("MigrateLegacyConfig: %v", err)
+	}
+
+	// Config should be unchanged.
+	loaded, err := LoadConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.ActiveProject != "staging" {
+		t.Errorf("ActiveProject changed to %q", loaded.ActiveProject)
+	}
+}
+
+func TestMigrateLegacyConfig_NoConfig(t *testing.T) {
+	setupTestDir(t)
+
+	// Should be a no-op (no error).
+	if err := MigrateLegacyConfig(); err != nil {
+		t.Fatalf("MigrateLegacyConfig: %v", err)
+	}
+}
+
+// filepathGlob is a helper to get the project directory path in tests.
+func filepathGlob(projectName string) (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(home, ".cashea-auth", "projects", projectName), nil
 }
