@@ -89,6 +89,9 @@ cashea-auth project use production
 
 # Remove a project
 cashea-auth project remove staging
+
+# Rename a project
+cashea-auth project rename staging dev
 ```
 
 You can also override the active project for a single command using the global `--project` flag — perfect for scripting:
@@ -205,6 +208,7 @@ cashea-auth --verbose project list
 | `project list`   | List all configured projects                    |
 | `project use`    | Switch the active project                       |
 | `project remove` | Remove a project                                |
+| `project rename` | Rename a project                               |
 | `login`          | Sign in with email and password                 |
 | `token`          | Print the current bearer token                  |
 | `me`             | Show current user details (Firebase Admin SDK)  |
