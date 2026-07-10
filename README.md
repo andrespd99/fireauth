@@ -187,8 +187,72 @@ Requires `GITHUB_TOKEN` or `gh` CLI (same as install).
 
 ### Use with Postman
 
-> [!NOTE]
-> Coming soon... Postman does not allow child_process calls in pre-request scripts, so it cannot call this tool automatically. But there's a work-around: Because Postman pre-request scripts can make HTTP request, we can start an http server and call a served path to get the bearer token. But I think this tool is already a good MVP and I'm tired boss 🚬
+Since Postman pre-request scripts cannot spawn child processes, `cashea-auth`
+includes a built-in HTTP server you can start locally. Postman scripts call
+the server over HTTP to fetch the bearer token automatically.
+
+#### 1. Start the server
+
+```bash
+cashea-auth serve
+```
+
+By default it listens on `http://127.0.0.1:9876` (localhost only — no remote
+access). Use `--addr` to change the port:
+
+```bash
+cashea-auth serve --addr 127.0.0.1:9877
+```
+
+#### 2. Endpoints
+
+| Method | Path       | Description                                              |
+| ------ | ---------- | -------------------------------------------------------- |
+| `GET`  | `/health`  | Health check (`{"status":"ok","version":"..."}`)       |
+| `GET`  | `/token`   | Returns the bearer token for the active session          |
+| `GET`  | `/me`      | Returns JSON user details for the active session         |
+
+All endpoints accept an optional `?project=` query parameter to override the
+active project for that request.
+
+**`/token` query parameters:**
+
+| Param     | Default | Description                                              |
+| --------- | ------- | -------------------------------------------------------- |
+| `project` | (active)| Override the active project                              |
+| `refresh` | `false` | Force token refresh (`true`/`false`)                     |
+| `format`  | (bare)  | Set to `header` to get `Authorization: Bearer <token>`   |
+
+#### 3. Postman pre-request script
+
+Add this to your collection's **Pre-request Script** tab (or per-request if
+you prefer):
+
+```javascript
+// Fetch a fresh bearer token from cashea-auth and set it as the Authorization header.
+pm.sendRequest({
+    url: "http://127.0.0.1:9876/token",
+    method: "GET"
+}, function (err, response) {
+    if (err) {
+        console.log("cashea-auth: request failed — is the server running? (cashea-auth serve)");
+        throw err;
+    }
+    if (response.code !== 200) {
+        console.log("cashea-auth: " + response.text());
+        throw new Error("Failed to fetch token from cashea-auth");
+    }
+    pm.request.headers.upsert({
+        key: "Authorization",
+        value: "Bearer " + response.text()
+    });
+});
+```
+
+> [!TIP]
+> If you work with multiple Firebase projects, add `?project=production` (or
+> the project name) to the URL in the script to target a specific project
+> without switching the active one.
 
 ### Debugging
 
@@ -215,6 +279,7 @@ cashea-auth --verbose project list
 | `sessions`       | List all stored sessions for the active project |
 | `switch`         | Switch active session                           |
 | `logout`         | Remove a stored session                         |
+| `serve`          | Start a local HTTP server for Postman           |
 | `update`         | Self-update to the latest release               |
 
 ## Local storage
