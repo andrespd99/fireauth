@@ -1,8 +1,10 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/cashea-bnpl/auth-devtools/internal/logger"
 )
@@ -52,6 +54,9 @@ func ProjectsDir() (string, error) {
 
 // ProjectDir returns the path to a specific project's directory.
 func ProjectDir(name string) (string, error) {
+	if err := validateProjectName(name); err != nil {
+		return "", err
+	}
 	pdir, err := ProjectsDir()
 	if err != nil {
 		return "", err
@@ -61,9 +66,24 @@ func ProjectDir(name string) (string, error) {
 
 // ProjectFilePath returns the full path to a file inside a project's directory.
 func ProjectFilePath(projectName, filename string) (string, error) {
+	if err := validateProjectName(projectName); err != nil {
+		return "", err
+	}
 	pdir, err := ProjectDir(projectName)
 	if err != nil {
 		return "", err
 	}
 	return filepath.Join(pdir, filename), nil
+}
+
+// validateProjectName rejects names that could traverse outside the projects
+// directory (empty, path separators, "." or ".." segments).
+func validateProjectName(name string) error {
+	if name == "" {
+		return fmt.Errorf("project name must not be empty")
+	}
+	if strings.ContainsAny(name, `/\`) || name == "." || name == ".." {
+		return fmt.Errorf("invalid project name %q", name)
+	}
+	return nil
 }
