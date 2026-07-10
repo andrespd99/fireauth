@@ -53,23 +53,26 @@ func ProjectsDir() (string, error) {
 }
 
 // ProjectDir returns the path to a specific project's directory.
+// The name is cleaned with filepath.Clean to neutralize path traversal.
 func ProjectDir(name string) (string, error) {
-	if err := validateProjectName(name); err != nil {
+	cleaned := filepath.Clean(name)
+	if err := validateProjectName(cleaned); err != nil {
 		return "", err
 	}
 	pdir, err := ProjectsDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(pdir, name), nil
+	return filepath.Join(pdir, cleaned), nil
 }
 
 // ProjectFilePath returns the full path to a file inside a project's directory.
 func ProjectFilePath(projectName, filename string) (string, error) {
-	if err := validateProjectName(projectName); err != nil {
+	cleaned := filepath.Clean(projectName)
+	if err := validateProjectName(cleaned); err != nil {
 		return "", err
 	}
-	pdir, err := ProjectDir(projectName)
+	pdir, err := ProjectDir(cleaned)
 	if err != nil {
 		return "", err
 	}
@@ -79,10 +82,10 @@ func ProjectFilePath(projectName, filename string) (string, error) {
 // validateProjectName rejects names that could traverse outside the projects
 // directory (empty, path separators, "." or ".." segments).
 func validateProjectName(name string) error {
-	if name == "" {
-		return fmt.Errorf("project name must not be empty")
+	if name == "" || name == "." || name == ".." {
+		return fmt.Errorf("invalid project name %q", name)
 	}
-	if strings.ContainsAny(name, `/\`) || name == "." || name == ".." {
+	if strings.ContainsAny(name, `/\`) {
 		return fmt.Errorf("invalid project name %q", name)
 	}
 	return nil
