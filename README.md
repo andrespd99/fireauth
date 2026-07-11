@@ -96,6 +96,10 @@ fireauth project use
 # Switch directly
 fireauth project use production
 
+# 'fireauth use' is a shortcut alias for 'fireauth project use'
+fireauth use
+fireauth use production
+
 # Remove a project
 fireauth project remove staging
 
@@ -284,6 +288,7 @@ fireauth --verbose project list
 | `init`           | Set up or add a Firebase project                |
 | `project list`   | List all configured projects                    |
 | `project use`    | Switch the active project                       |
+| `use`            | Shortcut for `project use`                      |
 | `project remove` | Remove a project                                |
 | `project rename` | Rename a project                               |
 | `project update-key` | Update the Web API key for a project        |
