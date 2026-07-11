@@ -141,12 +141,19 @@ func RenameProject(oldName, newName string) error {
 		return fmt.Errorf("renaming project directory: %w", err)
 	}
 
-	// Update the name field inside project.json.
+	// Update the name and service account path inside project.json.
 	p, err := LoadProject(newName)
 	if err != nil {
 		return err
 	}
 	p.Name = newName
+	// The service account file lives inside the project directory, so its
+	// absolute path changed when the directory was renamed. Rewrite it to
+	// point at the new location so downstream commands (e.g. 'me') can find it.
+	if p.ServiceAccountPath != "" {
+		saFile := filepath.Base(p.ServiceAccountPath)
+		p.ServiceAccountPath = filepath.Join(newPath, saFile)
+	}
 	// SaveProject writes to the new directory using p.Name, which now matches.
 	if err := SaveProject(p); err != nil {
 		return fmt.Errorf("updating project name: %w", err)
