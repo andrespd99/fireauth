@@ -32,6 +32,13 @@ var projectUseCmd = &cobra.Command{
 	RunE:  runProjectUse,
 }
 
+var useCmd = &cobra.Command{
+	Use:   "use [name]",
+	Short: "Switch the active project (alias for 'project use')",
+	Args:  cobra.MaximumNArgs(1),
+	RunE:  runProjectUse,
+}
+
 var projectRemoveCmd = &cobra.Command{
 	Use:     "remove [name]",
 	Aliases: []string{"rm"},
@@ -54,6 +61,7 @@ func init() {
 	projectCmd.AddCommand(projectRemoveCmd)
 	projectCmd.AddCommand(projectRenameCmd)
 	rootCmd.AddCommand(projectCmd)
+	rootCmd.AddCommand(useCmd)
 }
 
 // --- project list ---
