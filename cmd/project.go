@@ -9,6 +9,7 @@ import (
 
 	"github.com/andrespd99/fireauth/internal/logger"
 	"github.com/andrespd99/fireauth/internal/store"
+	"github.com/andrespd99/fireauth/internal/tui"
 	"github.com/spf13/cobra"
 )
 
@@ -48,11 +49,22 @@ var projectRenameCmd = &cobra.Command{
 	RunE:    runProjectRename,
 }
 
+var projectUpdateKeyCmd = &cobra.Command{
+	Use:   "update-key [name]",
+	Short: "Update the Firebase Web API key for a project",
+	Args:  cobra.MaximumNArgs(1),
+	RunE:  runProjectUpdateKey,
+}
+
+var flagAPIKeyUpdate string
+
 func init() {
 	projectCmd.AddCommand(projectListCmd)
 	projectCmd.AddCommand(projectUseCmd)
 	projectCmd.AddCommand(projectRemoveCmd)
 	projectCmd.AddCommand(projectRenameCmd)
+	projectCmd.AddCommand(projectUpdateKeyCmd)
+	projectUpdateKeyCmd.Flags().StringVar(&flagAPIKeyUpdate, "api-key", "", "new Firebase Web API key (non-interactive)")
 	rootCmd.AddCommand(projectCmd)
 }
 
@@ -110,33 +122,19 @@ func runProjectUse(cmd *cobra.Command, args []string) error {
 	if len(args) == 1 {
 		target = args[0]
 	} else {
-		// Interactive picker.
 		sort.Strings(projects)
 
 		activeProject, _ := store.GetActiveProjectName()
 
-		fmt.Println()
-		for i, name := range projects {
-			marker := " "
-			if name == activeProject {
-				marker = "*"
-			}
-			fmt.Printf("  %s %d) %s\n", marker, i+1, name)
-		}
-		fmt.Println()
-		fmt.Print("Select project number: ")
-
-		reader := bufio.NewReader(os.Stdin)
-		input, err := reader.ReadString('\n')
+		selected, err := tui.Pick("Select project", projects, activeProject)
 		if err != nil {
-			return fmt.Errorf("reading input: %w", err)
+			return err
 		}
-
-		num, err := parseInt(strings.TrimSpace(input))
-		if err != nil || num < 1 || num > len(projects) {
-			return fmt.Errorf("invalid selection")
+		if selected == "" {
+			fmt.Fprintln(os.Stderr, "cancelled")
+			return nil
 		}
-		target = projects[num-1]
+		target = selected
 	}
 
 	// Validate the project exists.
@@ -181,27 +179,19 @@ func runProjectRemove(cmd *cobra.Command, args []string) error {
 	if len(args) == 1 {
 		target = args[0]
 	} else {
-		// Interactive picker.
 		sort.Strings(projects)
 
-		fmt.Println()
-		for i, name := range projects {
-			fmt.Printf("  %d) %s\n", i+1, name)
-		}
-		fmt.Println()
-		fmt.Print("Select project to remove: ")
+		activeProject, _ := store.GetActiveProjectName()
 
-		reader := bufio.NewReader(os.Stdin)
-		input, err := reader.ReadString('\n')
+		selected, err := tui.Pick("Select project to remove", projects, activeProject)
 		if err != nil {
-			return fmt.Errorf("reading input: %w", err)
+			return err
 		}
-
-		num, err := parseInt(strings.TrimSpace(input))
-		if err != nil || num < 1 || num > len(projects) {
-			return fmt.Errorf("invalid selection")
+		if selected == "" {
+			fmt.Fprintln(os.Stderr, "cancelled")
+			return nil
 		}
-		target = projects[num-1]
+		target = selected
 	}
 
 	// Validate.
@@ -216,25 +206,34 @@ func runProjectRemove(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("project %q not found", target)
 	}
 
-	if len(projects) == 1 {
-		return fmt.Errorf("cannot remove the only remaining project — add another first with 'fireauth init'")
+	wasActive := false
+	activeProject, _ := store.GetActiveProjectName()
+	if activeProject == target {
+		wasActive = true
 	}
 
 	if err := store.DeleteProject(target); err != nil {
 		return fmt.Errorf("removing project: %w", err)
 	}
 
-	// Update active project if we removed the active one.
-	activeProject, _ := store.GetActiveProjectName()
-	if activeProject == target {
-		remaining, _ := store.ListProjects()
-		if len(remaining) > 0 {
-			sort.Strings(remaining)
-			if err := store.SetActiveProject(remaining[0]); err != nil {
+	remaining, _ := store.ListProjects()
+	if len(remaining) == 0 {
+		if wasActive {
+			if err := store.ClearActiveProject(); err != nil {
 				return err
 			}
-			fmt.Printf("  Active project switched to %s\n", remaining[0])
 		}
+		fmt.Printf("✓ Removed project %s\n", target)
+		fmt.Println("No projects remaining. Run 'fireauth init' to add one.")
+		return nil
+	}
+
+	if wasActive {
+		sort.Strings(remaining)
+		if err := store.SetActiveProject(remaining[0]); err != nil {
+			return err
+		}
+		fmt.Printf("  Active project switched to %s\n", remaining[0])
 	}
 
 	fmt.Printf("✓ Removed project %s\n", target)
@@ -268,6 +267,67 @@ func runProjectRename(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Printf("✓ Renamed project %s → %s\n", oldName, newName)
+	return nil
+}
+
+// --- project update-key ---
+
+func runProjectUpdateKey(cmd *cobra.Command, args []string) error {
+	projects, err := store.ListProjects()
+	if err != nil {
+		return err
+	}
+	if len(projects) == 0 {
+		return fmt.Errorf("no projects configured — run 'fireauth init' first")
+	}
+
+	var name string
+	if len(args) == 1 {
+		name = args[0]
+	} else {
+		active, err := resolveProjectName()
+		if err == nil && active != "" {
+			name = active
+		} else {
+			sort.Strings(projects)
+			selected, err := tui.Pick("Select project", projects, active)
+			if err != nil {
+				return err
+			}
+			if selected == "" {
+				fmt.Fprintln(os.Stderr, "cancelled")
+				return nil
+			}
+			name = selected
+		}
+	}
+
+	p, err := store.LoadProject(name)
+	if err != nil {
+		return err
+	}
+
+	apiKey := flagAPIKeyUpdate
+	if apiKey == "" {
+		fmt.Printf("New Firebase Web API Key for %s: ", name)
+		reader := bufio.NewReader(os.Stdin)
+		input, err := reader.ReadString('\n')
+		if err != nil {
+			return fmt.Errorf("reading API key: %w", err)
+		}
+		apiKey = strings.TrimSpace(input)
+	}
+	if apiKey == "" {
+		return fmt.Errorf("API key cannot be empty")
+	}
+
+	p.FirebaseAPIKey = apiKey
+	if err := store.SaveProject(p); err != nil {
+		return fmt.Errorf("saving project: %w", err)
+	}
+
+	logger.Debug("updated API key", "project", name, "length", len(apiKey))
+	fmt.Printf("✓ Updated API key for project %s\n", name)
 	return nil
 }
 
