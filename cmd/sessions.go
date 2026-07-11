@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/andrespd99/fireauth/internal/store"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
 )
 
@@ -46,7 +47,10 @@ func runSessions(cmd *cobra.Command, args []string) error {
 	}
 
 	if flagSessionsJSON {
-		data, _ := json.MarshalIndent(sessions, "", "  ")
+		data, err := json.MarshalIndent(sessions, "", "  ")
+		if err != nil {
+			return fmt.Errorf("marshalling sessions: %w", err)
+		}
 		fmt.Println(string(data))
 		return nil
 	}
@@ -84,13 +88,19 @@ func runSessions(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+var (
+	tokenExpiredStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
+	tokenExpiringStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
+	tokenValidStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
+)
+
 func tokenStatusString(expiry time.Time) string {
 	remaining := time.Until(expiry)
 	if remaining <= 0 {
-		return "\033[31mexpired\033[0m"
+		return tokenExpiredStyle.Render("expired")
 	}
 	if remaining < 5*time.Minute {
-		return fmt.Sprintf("\033[33mexpiring (%s)\033[0m", formatDuration(remaining))
+		return tokenExpiringStyle.Render(fmt.Sprintf("expiring (%s)", formatDuration(remaining)))
 	}
-	return fmt.Sprintf("\033[32mvalid (%s)\033[0m", formatDuration(remaining))
+	return tokenValidStyle.Render(fmt.Sprintf("valid (%s)", formatDuration(remaining)))
 }

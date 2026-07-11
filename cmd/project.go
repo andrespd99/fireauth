@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"sort"
@@ -55,7 +56,7 @@ var projectUpdateKeyCmd = &cobra.Command{
 	RunE:  runProjectUpdateKey,
 }
 
-var flagAPIKeyUpdate string
+var flagNewAPIKey string
 
 func init() {
 	projectCmd.AddCommand(projectListCmd)
@@ -63,7 +64,7 @@ func init() {
 	projectCmd.AddCommand(projectRemoveCmd)
 	projectCmd.AddCommand(projectRenameCmd)
 	projectCmd.AddCommand(projectUpdateKeyCmd)
-	projectUpdateKeyCmd.Flags().StringVar(&flagAPIKeyUpdate, "api-key", "", "new Firebase Web API key (non-interactive)")
+	projectUpdateKeyCmd.Flags().StringVar(&flagNewAPIKey, "api-key", "", "new Firebase Web API key (non-interactive)")
 	rootCmd.AddCommand(projectCmd)
 }
 
@@ -79,7 +80,10 @@ func runProjectList(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	activeProject, _ := store.GetActiveProjectName()
+	activeProject, err := store.GetActiveProjectName()
+	if err != nil {
+		logger.Warn("failed to get active project", "error", err)
+	}
 
 	sort.Strings(projects)
 
@@ -123,7 +127,10 @@ func runProjectUse(cmd *cobra.Command, args []string) error {
 	} else {
 		sort.Strings(projects)
 
-		activeProject, _ := store.GetActiveProjectName()
+		activeProject, err := store.GetActiveProjectName()
+		if err != nil {
+			logger.Warn("failed to get active project", "error", err)
+		}
 
 		selected, err := tui.Pick("Select project", projects, activeProject)
 		if err != nil {
@@ -137,14 +144,7 @@ func runProjectUse(cmd *cobra.Command, args []string) error {
 	}
 
 	// Validate the project exists.
-	found := false
-	for _, name := range projects {
-		if name == target {
-			found = true
-			break
-		}
-	}
-	if !found {
+	if !contains(projects, target) {
 		return fmt.Errorf("project %q not found — available: %s", target, strings.Join(projects, ", "))
 	}
 
@@ -180,7 +180,10 @@ func runProjectRemove(cmd *cobra.Command, args []string) error {
 	} else {
 		sort.Strings(projects)
 
-		activeProject, _ := store.GetActiveProjectName()
+		activeProject, err := store.GetActiveProjectName()
+		if err != nil {
+			logger.Warn("failed to get active project", "error", err)
+		}
 
 		selected, err := tui.Pick("Select project to remove", projects, activeProject)
 		if err != nil {
@@ -194,19 +197,15 @@ func runProjectRemove(cmd *cobra.Command, args []string) error {
 	}
 
 	// Validate.
-	found := false
-	for _, name := range projects {
-		if name == target {
-			found = true
-			break
-		}
-	}
-	if !found {
+	if !contains(projects, target) {
 		return fmt.Errorf("project %q not found", target)
 	}
 
 	wasActive := false
-	activeProject, _ := store.GetActiveProjectName()
+	activeProject, err := store.GetActiveProjectName()
+	if err != nil {
+		logger.Warn("failed to get active project", "error", err)
+	}
 	if activeProject == target {
 		wasActive = true
 	}
@@ -250,14 +249,7 @@ func runProjectRename(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	found := false
-	for _, name := range projects {
-		if name == oldName {
-			found = true
-			break
-		}
-	}
-	if !found {
+	if !contains(projects, oldName) {
 		return fmt.Errorf("project %q not found — available: %s", oldName, strings.Join(projects, ", "))
 	}
 
@@ -306,7 +298,7 @@ func runProjectUpdateKey(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	apiKey := flagAPIKeyUpdate
+	apiKey := flagNewAPIKey
 	if apiKey == "" {
 		fmt.Printf("New Firebase Web API Key for %s: ", name)
 		reader := bufio.NewReader(os.Stdin)
@@ -332,8 +324,11 @@ func runProjectUpdateKey(cmd *cobra.Command, args []string) error {
 
 // --- helpers ---
 
-func parseInt(s string) (int, error) {
-	var n int
-	_, err := fmt.Sscanf(s, "%d", &n)
-	return n, err
+func contains(slice []string, s string) bool {
+	for _, v := range slice {
+		if v == s {
+			return true
+		}
+	}
+	return false
 }
