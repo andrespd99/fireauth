@@ -48,11 +48,22 @@ var projectRenameCmd = &cobra.Command{
 	RunE:    runProjectRename,
 }
 
+var projectUpdateKeyCmd = &cobra.Command{
+	Use:   "update-key [name]",
+	Short: "Update the Firebase Web API key for a project",
+	Args:  cobra.MaximumNArgs(1),
+	RunE:  runProjectUpdateKey,
+}
+
+var flagAPIKeyUpdate string
+
 func init() {
 	projectCmd.AddCommand(projectListCmd)
 	projectCmd.AddCommand(projectUseCmd)
 	projectCmd.AddCommand(projectRemoveCmd)
 	projectCmd.AddCommand(projectRenameCmd)
+	projectCmd.AddCommand(projectUpdateKeyCmd)
+	projectUpdateKeyCmd.Flags().StringVar(&flagAPIKeyUpdate, "api-key", "", "new Firebase Web API key (non-interactive)")
 	rootCmd.AddCommand(projectCmd)
 }
 
@@ -194,25 +205,34 @@ func runProjectRemove(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("project %q not found", target)
 	}
 
-	if len(projects) == 1 {
-		return fmt.Errorf("cannot remove the only remaining project — add another first with 'fireauth init'")
+	wasActive := false
+	activeProject, _ := store.GetActiveProjectName()
+	if activeProject == target {
+		wasActive = true
 	}
 
 	if err := store.DeleteProject(target); err != nil {
 		return fmt.Errorf("removing project: %w", err)
 	}
 
-	// Update active project if we removed the active one.
-	activeProject, _ := store.GetActiveProjectName()
-	if activeProject == target {
-		remaining, _ := store.ListProjects()
-		if len(remaining) > 0 {
-			sort.Strings(remaining)
-			if err := store.SetActiveProject(remaining[0]); err != nil {
+	remaining, _ := store.ListProjects()
+	if len(remaining) == 0 {
+		if wasActive {
+			if err := store.ClearActiveProject(); err != nil {
 				return err
 			}
-			fmt.Printf("  Active project switched to %s\n", remaining[0])
 		}
+		fmt.Printf("✓ Removed project %s\n", target)
+		fmt.Println("No projects remaining. Run 'fireauth init' to add one.")
+		return nil
+	}
+
+	if wasActive {
+		sort.Strings(remaining)
+		if err := store.SetActiveProject(remaining[0]); err != nil {
+			return err
+		}
+		fmt.Printf("  Active project switched to %s\n", remaining[0])
 	}
 
 	fmt.Printf("✓ Removed project %s\n", target)
@@ -246,6 +266,67 @@ func runProjectRename(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Printf("✓ Renamed project %s → %s\n", oldName, newName)
+	return nil
+}
+
+// --- project update-key ---
+
+func runProjectUpdateKey(cmd *cobra.Command, args []string) error {
+	projects, err := store.ListProjects()
+	if err != nil {
+		return err
+	}
+	if len(projects) == 0 {
+		return fmt.Errorf("no projects configured — run 'fireauth init' first")
+	}
+
+	var name string
+	if len(args) == 1 {
+		name = args[0]
+	} else {
+		active, err := resolveProjectName()
+		if err == nil && active != "" {
+			name = active
+		} else {
+			sort.Strings(projects)
+			selected, err := tui.Pick("Select project", projects, active)
+			if err != nil {
+				return err
+			}
+			if selected == "" {
+				fmt.Fprintln(os.Stderr, "cancelled")
+				return nil
+			}
+			name = selected
+		}
+	}
+
+	p, err := store.LoadProject(name)
+	if err != nil {
+		return err
+	}
+
+	apiKey := flagAPIKeyUpdate
+	if apiKey == "" {
+		fmt.Printf("New Firebase Web API Key for %s: ", name)
+		reader := bufio.NewReader(os.Stdin)
+		input, err := reader.ReadString('\n')
+		if err != nil {
+			return fmt.Errorf("reading API key: %w", err)
+		}
+		apiKey = strings.TrimSpace(input)
+	}
+	if apiKey == "" {
+		return fmt.Errorf("API key cannot be empty")
+	}
+
+	p.FirebaseAPIKey = apiKey
+	if err := store.SaveProject(p); err != nil {
+		return fmt.Errorf("saving project: %w", err)
+	}
+
+	logger.Debug("updated API key", "project", name, "length", len(apiKey))
+	fmt.Printf("✓ Updated API key for project %s\n", name)
 	return nil
 }
 
