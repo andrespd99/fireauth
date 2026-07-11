@@ -100,9 +100,25 @@ func runInit(cmd *cobra.Command, args []string) error {
 	}
 	logger.Debug("service account validated", "project_id", projectID)
 
-	// Derive project name from service account if not provided.
+	// Derive project name interactively if not provided.
 	if projectName == "" {
-		projectName = projectID
+		projects, _ := store.ListProjects()
+		defaultName := "default"
+		for _, p := range projects {
+			if p == defaultName {
+				defaultName = projectID
+				break
+			}
+		}
+		fmt.Printf("Project name [%s]: ", defaultName)
+		input, err := reader.ReadString('\n')
+		if err != nil {
+			return fmt.Errorf("reading project name: %w", err)
+		}
+		projectName = strings.TrimSpace(input)
+		if projectName == "" {
+			projectName = defaultName
+		}
 	}
 
 	// 5. Create project directory and copy service account into it.
