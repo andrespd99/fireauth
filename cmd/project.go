@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"sort"
@@ -9,6 +8,7 @@ import (
 
 	"github.com/andrespd99/fireauth/internal/logger"
 	"github.com/andrespd99/fireauth/internal/store"
+	"github.com/andrespd99/fireauth/internal/tui"
 	"github.com/spf13/cobra"
 )
 
@@ -110,33 +110,19 @@ func runProjectUse(cmd *cobra.Command, args []string) error {
 	if len(args) == 1 {
 		target = args[0]
 	} else {
-		// Interactive picker.
 		sort.Strings(projects)
 
 		activeProject, _ := store.GetActiveProjectName()
 
-		fmt.Println()
-		for i, name := range projects {
-			marker := " "
-			if name == activeProject {
-				marker = "*"
-			}
-			fmt.Printf("  %s %d) %s\n", marker, i+1, name)
-		}
-		fmt.Println()
-		fmt.Print("Select project number: ")
-
-		reader := bufio.NewReader(os.Stdin)
-		input, err := reader.ReadString('\n')
+		selected, err := tui.Pick("Select project", projects, activeProject)
 		if err != nil {
-			return fmt.Errorf("reading input: %w", err)
+			return err
 		}
-
-		num, err := parseInt(strings.TrimSpace(input))
-		if err != nil || num < 1 || num > len(projects) {
-			return fmt.Errorf("invalid selection")
+		if selected == "" {
+			fmt.Fprintln(os.Stderr, "cancelled")
+			return nil
 		}
-		target = projects[num-1]
+		target = selected
 	}
 
 	// Validate the project exists.
@@ -181,27 +167,19 @@ func runProjectRemove(cmd *cobra.Command, args []string) error {
 	if len(args) == 1 {
 		target = args[0]
 	} else {
-		// Interactive picker.
 		sort.Strings(projects)
 
-		fmt.Println()
-		for i, name := range projects {
-			fmt.Printf("  %d) %s\n", i+1, name)
-		}
-		fmt.Println()
-		fmt.Print("Select project to remove: ")
+		activeProject, _ := store.GetActiveProjectName()
 
-		reader := bufio.NewReader(os.Stdin)
-		input, err := reader.ReadString('\n')
+		selected, err := tui.Pick("Select project to remove", projects, activeProject)
 		if err != nil {
-			return fmt.Errorf("reading input: %w", err)
+			return err
 		}
-
-		num, err := parseInt(strings.TrimSpace(input))
-		if err != nil || num < 1 || num > len(projects) {
-			return fmt.Errorf("invalid selection")
+		if selected == "" {
+			fmt.Fprintln(os.Stderr, "cancelled")
+			return nil
 		}
-		target = projects[num-1]
+		target = selected
 	}
 
 	// Validate.
