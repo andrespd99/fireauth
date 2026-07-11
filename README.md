@@ -101,6 +101,12 @@ fireauth project remove staging
 
 # Rename a project
 fireauth project rename staging dev
+
+# Update the Web API key for a project
+fireauth project update-key staging --api-key "AIzaSy..."
+
+# Or interactively (prompts for the key)
+fireauth project update-key staging
 ```
 
 You can also override the active project for a single command using the global `--project` flag — perfect for scripting:
@@ -280,6 +286,7 @@ fireauth --verbose project list
 | `project use`    | Switch the active project                       |
 | `project remove` | Remove a project                                |
 | `project rename` | Rename a project                               |
+| `project update-key` | Update the Web API key for a project        |
 | `login`          | Sign in with email and password                 |
 | `token`          | Print the current bearer token                  |
 | `me`             | Show current user details (Firebase Admin SDK)  |

@@ -220,6 +220,18 @@ func SetActiveProject(name string) error {
 	return SaveConfig(cfg)
 }
 
+// ClearActiveProject empties the active project name in the global config. It
+// creates an empty config if none exists yet.
+func ClearActiveProject() error {
+	cfg, err := LoadConfig()
+	if err != nil {
+		cfg = &Config{}
+	}
+	cfg.ActiveProject = ""
+	logger.Debug("clearing active project")
+	return SaveConfig(cfg)
+}
+
 // --- Sessions (per-project) ---
 
 // projectSessionsPath returns the sessions.json path for a project.
