@@ -1,6 +1,7 @@
 package firebase
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -46,7 +47,7 @@ func TestSignInWithPassword_Success(t *testing.T) {
 	SignInBaseURL = server.URL
 	defer func() { SignInBaseURL = origURL }()
 
-	result, err := SignInWithPassword("fake-api-key", "test@example.com", "password123")
+	result, err := SignInWithPassword(context.Background(), "fake-api-key", "test@example.com", "password123")
 	if err != nil {
 		t.Fatalf("SignInWithPassword: %v", err)
 	}
@@ -72,7 +73,7 @@ func TestSignInWithPassword_WrongPassword(t *testing.T) {
 	SignInBaseURL = server.URL
 	defer func() { SignInBaseURL = origURL }()
 
-	_, err := SignInWithPassword("fake-api-key", "test@example.com", "wrong")
+	_, err := SignInWithPassword(context.Background(), "fake-api-key", "test@example.com", "wrong")
 	if err == nil {
 		t.Fatal("expected error for wrong password")
 	}
@@ -95,7 +96,7 @@ func TestSignInWithPassword_EmailNotFound(t *testing.T) {
 	SignInBaseURL = server.URL
 	defer func() { SignInBaseURL = origURL }()
 
-	_, err := SignInWithPassword("fake-api-key", "nobody@example.com", "pass")
+	_, err := SignInWithPassword(context.Background(), "fake-api-key", "nobody@example.com", "pass")
 	if err == nil {
 		t.Fatal("expected error for email not found")
 	}
@@ -134,7 +135,7 @@ func TestRefreshIDToken_Success(t *testing.T) {
 	RefreshBaseURL = server.URL
 	defer func() { RefreshBaseURL = origURL }()
 
-	result, err := RefreshIDToken("fake-api-key", "old-refresh-token")
+	result, err := RefreshIDToken(context.Background(), "fake-api-key", "old-refresh-token")
 	if err != nil {
 		t.Fatalf("RefreshIDToken: %v", err)
 	}
@@ -160,7 +161,7 @@ func TestRefreshIDToken_Expired(t *testing.T) {
 	RefreshBaseURL = server.URL
 	defer func() { RefreshBaseURL = origURL }()
 
-	_, err := RefreshIDToken("fake-api-key", "expired-token")
+	_, err := RefreshIDToken(context.Background(), "fake-api-key", "expired-token")
 	if err == nil {
 		t.Fatal("expected error for expired token")
 	}
@@ -208,7 +209,7 @@ func TestSignInWithPassword_CustomReferer(t *testing.T) {
 		RefererHeader = origReferer
 	}()
 
-	_, err := SignInWithPassword("fake-api-key", "test@example.com", "pass")
+	_, err := SignInWithPassword(context.Background(), "fake-api-key", "test@example.com", "pass")
 	if err != nil {
 		t.Fatalf("SignInWithPassword: %v", err)
 	}
@@ -233,7 +234,7 @@ func TestRefreshIDToken_CustomReferer(t *testing.T) {
 		RefererHeader = origReferer
 	}()
 
-	_, err := RefreshIDToken("fake-api-key", "refresh-token")
+	_, err := RefreshIDToken(context.Background(), "fake-api-key", "refresh-token")
 	if err != nil {
 		t.Fatalf("RefreshIDToken: %v", err)
 	}

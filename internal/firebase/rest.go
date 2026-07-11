@@ -2,6 +2,7 @@ package firebase
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,6 +14,10 @@ import (
 
 	"github.com/andrespd99/fireauth/internal/logger"
 )
+
+// httpClient is used for all Firebase REST calls. A timeout prevents the CLI
+// from hanging indefinitely if a Firebase endpoint is unreachable.
+var httpClient = &http.Client{Timeout: 30 * time.Second}
 
 // Default Firebase Auth REST API base URLs. Overridable for testing.
 var (
@@ -53,7 +58,7 @@ type FirebaseError struct {
 
 // SignInWithPassword authenticates a user via email/password and returns the
 // sign-in response including ID and refresh tokens.
-func SignInWithPassword(apiKey, email, password string) (*SignInResponse, error) {
+func SignInWithPassword(ctx context.Context, apiKey, email, password string) (*SignInResponse, error) {
 	reqURL := fmt.Sprintf("%s?key=%s", SignInBaseURL, url.QueryEscape(apiKey))
 	logger.Debug("firebase sign-in request", "url", SignInBaseURL, "email", email)
 
@@ -67,20 +72,20 @@ func SignInWithPassword(apiKey, email, password string) (*SignInResponse, error)
 		return nil, fmt.Errorf("marshalling sign-in request: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", reqURL, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, "POST", reqURL, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("building sign-in request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Referer", RefererHeader)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("sign-in HTTP request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
-	respBody, err := io.ReadAll(resp.Body)
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, 10<<20))
 	if err != nil {
 		return nil, fmt.Errorf("reading sign-in response: %w", err)
 	}
@@ -123,7 +128,7 @@ type RefreshResponse struct {
 }
 
 // RefreshIDToken exchanges a refresh token for a new ID token.
-func RefreshIDToken(apiKey, refreshToken string) (*RefreshResponse, error) {
+func RefreshIDToken(ctx context.Context, apiKey, refreshToken string) (*RefreshResponse, error) {
 	reqURL := fmt.Sprintf("%s?key=%s", RefreshBaseURL, url.QueryEscape(apiKey))
 	logger.Debug("firebase token refresh request", "url", RefreshBaseURL)
 
@@ -131,20 +136,20 @@ func RefreshIDToken(apiKey, refreshToken string) (*RefreshResponse, error) {
 	form.Set("grant_type", "refresh_token")
 	form.Set("refresh_token", refreshToken)
 
-	req, err := http.NewRequest("POST", reqURL, strings.NewReader(form.Encode()))
+	req, err := http.NewRequestWithContext(ctx, "POST", reqURL, strings.NewReader(form.Encode()))
 	if err != nil {
 		return nil, fmt.Errorf("building refresh request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Referer", RefererHeader)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("refresh HTTP request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
-	respBody, err := io.ReadAll(resp.Body)
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, 10<<20))
 	if err != nil {
 		return nil, fmt.Errorf("reading refresh response: %w", err)
 	}

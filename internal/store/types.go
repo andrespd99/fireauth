@@ -1,6 +1,9 @@
 package store
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 // Config holds the tool's global configuration persisted in config.json.
 // In the multi-project model this only tracks the active project name.
@@ -24,6 +27,17 @@ type Project struct {
 	FirebaseAPIKey     string `json:"firebase_api_key"`
 	ServiceAccountPath string `json:"service_account_path"`
 	ActiveSession      string `json:"active_session"`
+}
+
+// Validate checks that the project has the required fields populated.
+func (p *Project) Validate() error {
+	if p.Name == "" {
+		return fmt.Errorf("project name is empty")
+	}
+	if p.FirebaseAPIKey == "" {
+		return fmt.Errorf("project %q has no Firebase API key — run 'fireauth project update-key %s'", p.Name, p.Name)
+	}
+	return nil
 }
 
 // Session represents a single authenticated user session.
