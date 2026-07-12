@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,9 +14,14 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/andrespd99/fireauth/internal/logger"
 )
+
+// httpClient is used for all GitHub API calls. A timeout prevents the CLI
+// from hanging indefinitely if GitHub is unreachable.
+var httpClient = &http.Client{Timeout: 60 * time.Second}
 
 const (
 	repoOwner  = "andrespd99"
@@ -59,18 +65,21 @@ func ResolveToken() (string, error) {
 }
 
 // FetchLatestRelease fetches the latest release from GitHub.
-func FetchLatestRelease(token string) (*GitHubRelease, error) {
+func FetchLatestRelease(ctx context.Context, token string) (*GitHubRelease, error) {
 	url := fmt.Sprintf("%s/repos/%s/%s/releases/latest", GitHubAPIBase, repoOwner, repoName)
 	logger.Debug("fetching latest release", "url", url)
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Authorization", "token "+token)
+	if token != "" {
+		req.Header.Set("Authorization", "token "+token)
+	}
 	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("User-Agent", "fireauth/updater")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("fetching latest release: %w", err)
 	}
@@ -119,18 +128,21 @@ func FindAsset(release *GitHubRelease, goos, goarch string) (*GitHubAsset, error
 
 // DownloadAsset downloads a release asset by ID. For private repos this uses
 // the GitHub API with Accept: application/octet-stream.
-func DownloadAsset(token string, assetID int) ([]byte, error) {
+func DownloadAsset(ctx context.Context, token string, assetID int) ([]byte, error) {
 	url := fmt.Sprintf("%s/repos/%s/%s/releases/assets/%d", GitHubAPIBase, repoOwner, repoName, assetID)
 	logger.Debug("downloading asset", "url", url, "asset_id", assetID)
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Authorization", "token "+token)
+	if token != "" {
+		req.Header.Set("Authorization", "token "+token)
+	}
 	req.Header.Set("Accept", "application/octet-stream")
+	req.Header.Set("User-Agent", "fireauth/updater")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("downloading asset: %w", err)
 	}
@@ -142,7 +154,7 @@ func DownloadAsset(token string, assetID int) ([]byte, error) {
 		return nil, fmt.Errorf("download failed: HTTP %d", resp.StatusCode)
 	}
 
-	data, err := io.ReadAll(resp.Body)
+	data, err := io.ReadAll(io.LimitReader(resp.Body, 100<<20))
 	if err != nil {
 		return nil, fmt.Errorf("reading download: %w", err)
 	}

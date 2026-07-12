@@ -3,10 +3,13 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
-	"strings"
+	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/andrespd99/fireauth/internal/logger"
@@ -57,22 +60,47 @@ func runServe(cmd *cobra.Command, args []string) error {
 	mux.HandleFunc("GET /token", srv.handleToken)
 	mux.HandleFunc("GET /me", srv.handleMe)
 
-	logger.Info("starting server", "addr", flagAddr)
 	fmt.Fprintf(cmd.ErrOrStderr(), "fireauth server listening on http://%s\n", flagAddr)
 	fmt.Fprintf(cmd.ErrOrStderr(), "Press Ctrl+C to stop\n")
 
 	httpServer := &http.Server{
-		Addr:    flagAddr,
-		Handler: mux,
+		Addr:         flagAddr,
+		Handler:      mux,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 30 * time.Second,
+		IdleTimeout:  120 * time.Second,
 	}
 
-	return httpServer.ListenAndServe()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- httpServer.ListenAndServe()
+	}()
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+
+	select {
+	case <-sigCh:
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		return httpServer.Shutdown(ctx)
+	case err := <-errCh:
+		if err != nil && err != http.ErrServerClosed {
+			return err
+		}
+		return nil
+	}
 }
 
 type server struct {
-	// sessionMu guards against concurrent session file writes (e.g. when
-	// multiple /token requests trigger a refresh at the same time).
-	sessionMu sync.Mutex
+	// mus holds a per-project mutex to guard against concurrent session file
+	// writes. Different projects don't block each other.
+	mus sync.Map // map[string]*sync.Mutex
+}
+
+func (s *server) projectLock(projectName string) *sync.Mutex {
+	v, _ := s.mus.LoadOrStore(projectName, &sync.Mutex{})
+	return v.(*sync.Mutex)
 }
 
 // writeJSON writes a JSON response with the given status code.
@@ -115,11 +143,11 @@ func (s *server) handleToken(w http.ResponseWriter, r *http.Request) {
 	forceRefresh := r.URL.Query().Get("refresh") == "true"
 	format := r.URL.Query().Get("format")
 
-	// Guard session writes against concurrent requests.
-	s.sessionMu.Lock()
-	defer s.sessionMu.Unlock()
+	mu := s.projectLock(projectName)
+	mu.Lock()
+	defer mu.Unlock()
 
-	token, err := getToken(projectName, forceRefresh)
+	token, err := getToken(r.Context(), projectName, forceRefresh)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -147,13 +175,11 @@ func (s *server) handleMe(w http.ResponseWriter, r *http.Request) {
 
 	user, sess, projName, err := getMe(ctx, projectName)
 	if err != nil {
-		// Distinguish "no session" errors from backend errors.
-		msg := err.Error()
-		if strings.Contains(msg, "no active") || strings.Contains(msg, "run 'fireauth init'") {
-			writeError(w, http.StatusBadRequest, msg)
+		if errors.Is(err, store.ErrNoActiveProject) || errors.Is(err, store.ErrNoActiveSession) {
+			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		writeError(w, http.StatusInternalServerError, msg)
+		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 

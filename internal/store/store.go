@@ -19,6 +19,43 @@ const (
 	dirPerm      = 0700
 )
 
+// Sentinel errors that callers can match with errors.Is.
+var (
+	ErrNoActiveProject = errors.New("no active project — run 'fireauth project use <name>'")
+	ErrNoActiveSession = errors.New("no active session — run 'fireauth login' first")
+	ErrConfigNotFound  = errors.New("config not found")
+	ErrProjectNotFound = errors.New("project not found")
+)
+
+// writeAtomic writes data to path atomically by writing to a temp file in the
+// same directory and renaming it into place. This prevents partial writes from
+// corrupting the target file if the process is killed or crashes mid-write.
+func writeAtomic(path string, data []byte, perm os.FileMode) error {
+	dir := filepath.Dir(path)
+	f, err := os.CreateTemp(dir, ".tmp-*")
+	if err != nil {
+		return fmt.Errorf("creating temp file: %w", err)
+	}
+	tmp := f.Name()
+	defer os.Remove(tmp) // no-op if rename succeeded
+
+	if _, err := f.Write(data); err != nil {
+		f.Close()
+		return fmt.Errorf("writing temp file: %w", err)
+	}
+	if err := f.Sync(); err != nil {
+		f.Close()
+		return fmt.Errorf("syncing temp file: %w", err)
+	}
+	if err := f.Close(); err != nil {
+		return fmt.Errorf("closing temp file: %w", err)
+	}
+	if err := os.Chmod(tmp, perm); err != nil {
+		return fmt.Errorf("setting permissions: %w", err)
+	}
+	return os.Rename(tmp, path)
+}
+
 // --- Config (global) ---
 
 // LoadConfig reads and parses the config file.
@@ -32,7 +69,7 @@ func LoadConfig() (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("config not found — run 'fireauth init' first")
+			return nil, fmt.Errorf("%w — run 'fireauth init' first", ErrConfigNotFound)
 		}
 		return nil, err
 	}
@@ -56,7 +93,7 @@ func SaveConfig(cfg *Config) error {
 		return err
 	}
 	logger.Debug("saving config", "path", path)
-	return os.WriteFile(path, data, filePerm)
+	return writeAtomic(path, data, filePerm)
 }
 
 // --- Project ---
@@ -72,7 +109,7 @@ func LoadProject(name string) (*Project, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("project %q not found", name)
+			return nil, fmt.Errorf("%w: %q", ErrProjectNotFound, name)
 		}
 		return nil, err
 	}
@@ -80,6 +117,9 @@ func LoadProject(name string) (*Project, error) {
 	var p Project
 	if err := json.Unmarshal(data, &p); err != nil {
 		return nil, fmt.Errorf("invalid project.json for %q: %w", name, err)
+	}
+	if err := p.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid project config: %w", err)
 	}
 	logger.Debug("project loaded", "name", p.Name, "active_session", p.ActiveSession)
 	return &p, nil
@@ -102,7 +142,7 @@ func SaveProject(p *Project) error {
 		return err
 	}
 	logger.Debug("saving project", "name", p.Name, "path", path)
-	return os.WriteFile(path, data, filePerm)
+	return writeAtomic(path, data, filePerm)
 }
 
 // DeleteProject removes a project's directory entirely.
@@ -204,7 +244,7 @@ func GetActiveProjectName() (string, error) {
 		return "", err
 	}
 	if cfg.ActiveProject == "" {
-		return "", errors.New("no active project — run 'fireauth project use <name>'")
+		return "", ErrNoActiveProject
 	}
 	return cfg.ActiveProject, nil
 }
@@ -225,7 +265,11 @@ func SetActiveProject(name string) error {
 func ClearActiveProject() error {
 	cfg, err := LoadConfig()
 	if err != nil {
-		cfg = &Config{}
+		if errors.Is(err, ErrConfigNotFound) {
+			cfg = &Config{}
+		} else {
+			return fmt.Errorf("loading config: %w", err)
+		}
 	}
 	cfg.ActiveProject = ""
 	logger.Debug("clearing active project")
@@ -284,7 +328,7 @@ func SaveSessions(projectName string, s Sessions) error {
 		return err
 	}
 	logger.Debug("saving sessions", "project", projectName, "path", path, "count", len(s))
-	return os.WriteFile(path, data, filePerm)
+	return writeAtomic(path, data, filePerm)
 }
 
 // --- Migration (legacy single-project → multi-project) ---
@@ -300,15 +344,15 @@ func SaveSessions(projectName string, s Sessions) error {
 func MigrateLegacyConfig() error {
 	cfg, err := LoadConfig()
 	if err != nil {
-		// No config at all — nothing to migrate.
-		return nil
+		if errors.Is(err, ErrConfigNotFound) {
+			return nil
+		}
+		return err
 	}
 	if cfg.ActiveProject != "" {
-		// Already migrated.
 		return nil
 	}
 	if cfg.FirebaseAPIKey == "" {
-		// Nothing to migrate from.
 		return nil
 	}
 
@@ -344,7 +388,7 @@ func MigrateLegacyConfig() error {
 	}
 	newSessions := filepath.Join(pdir, sessionsFile)
 	if data, rerr := os.ReadFile(oldSessions); rerr == nil {
-		if werr := os.WriteFile(newSessions, data, filePerm); werr != nil {
+		if werr := writeAtomic(newSessions, data, filePerm); werr != nil {
 			return fmt.Errorf("copying sessions.json: %w", werr)
 		}
 		_ = os.Remove(oldSessions)
@@ -399,7 +443,7 @@ func GetSession(projectName, email string) (*Project, *Session, error) {
 		email = p.ActiveSession
 	}
 	if email == "" {
-		return nil, nil, errors.New("no active session — run 'fireauth login' first")
+		return nil, nil, ErrNoActiveSession
 	}
 
 	sessions, err := LoadSessions(projectName)

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -44,7 +45,7 @@ func runToken(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	token, err := getToken(projectName, flagRefresh)
+	token, err := getToken(cmd.Context(), projectName, flagRefresh)
 	if err != nil {
 		return err
 	}
@@ -73,7 +74,7 @@ func runToken(cmd *cobra.Command, args []string) error {
 // getToken returns a valid ID token for the active session in the given project.
 // It refreshes the token if expired or within the refresh window (5 minutes),
 // or if forceRefresh is true. The refreshed session is persisted to disk.
-func getToken(projectName string, forceRefresh bool) (string, error) {
+func getToken(ctx context.Context, projectName string, forceRefresh bool) (string, error) {
 	p, sess, err := store.GetSession(projectName, "")
 	if err != nil {
 		return "", err
@@ -92,7 +93,10 @@ func getToken(projectName string, forceRefresh bool) (string, error) {
 				"remaining", time.Until(sess.TokenExpiry).String())
 		}
 
-		result, err := firebase.RefreshIDToken(p.FirebaseAPIKey, sess.RefreshToken)
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		result, err := firebase.RefreshIDToken(ctx, p.FirebaseAPIKey, sess.RefreshToken)
 		if err != nil {
 			return "", fmt.Errorf("refreshing token: %w\nRun 'fireauth login' to re-authenticate", err)
 		}
