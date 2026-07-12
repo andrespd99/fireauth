@@ -40,7 +40,7 @@ curl -sSL "https://raw.githubusercontent.com/andrespd99/fireauth/main/install.sh
 
 ### Build from source
 
-If you prefer to build from source (requires [Go 1.21+](https://go.dev/dl/) and [Task](https://taskfile.dev/)):
+If you prefer to build from source (requires [Go 1.26+](https://go.dev/dl/) and [Task](https://taskfile.dev/)):
 
 ```bash
 git clone https://github.com/andrespd99/fireauth.git

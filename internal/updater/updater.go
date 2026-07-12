@@ -5,6 +5,8 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -17,6 +19,7 @@ import (
 	"time"
 
 	"github.com/andrespd99/fireauth/internal/logger"
+	"golang.org/x/mod/semver"
 )
 
 // httpClient is used for all GitHub API calls. A timeout prevents the CLI
@@ -44,7 +47,10 @@ type GitHubAsset struct {
 	Name string `json:"name"`
 }
 
-// ResolveToken returns a GitHub token from the environment or gh CLI.
+// ResolveToken returns a GitHub token from the environment or gh CLI. If no
+// token is found, an empty string is returned — the caller proceeds
+// unauthenticated, which works for public repos subject to GitHub's rate
+// limits.
 func ResolveToken() (string, error) {
 	if token := os.Getenv("GITHUB_TOKEN"); token != "" {
 		logger.Debug("using GITHUB_TOKEN from environment")
@@ -61,7 +67,10 @@ func ResolveToken() (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("GITHUB_TOKEN is required\n\n  Option 1: export GITHUB_TOKEN=ghp_...\n  Option 2: install gh CLI and run 'gh auth login'")
+	// No token found — proceed unauthenticated (works for public repos with
+	// rate limits).
+	logger.Debug("no GitHub token found, proceeding unauthenticated")
+	return "", nil
 }
 
 // FetchLatestRelease fetches the latest release from GitHub.
@@ -92,7 +101,7 @@ func FetchLatestRelease(ctx context.Context, token string) (*GitHubRelease, erro
 			return nil, fmt.Errorf("no releases found — push a tag first (git tag v0.1.0 && git push origin v0.1.0)")
 		}
 		if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
-			return nil, fmt.Errorf("GitHub token is invalid or lacks repo access (HTTP %d)", resp.StatusCode)
+			return nil, fmt.Errorf("GitHub API returned HTTP %d — if you are rate limited, set GITHUB_TOKEN or run 'gh auth login'", resp.StatusCode)
 		}
 		return nil, fmt.Errorf("GitHub API error: HTTP %d", resp.StatusCode)
 	}
@@ -246,13 +255,77 @@ func Apply(binaryData []byte) error {
 	return nil
 }
 
-// NeedsUpdate compares the current version with the latest release tag.
-// Returns true if the versions differ.
+// NeedsUpdate compares the current version with the latest release tag using
+// proper semver comparison. Returns true if the latest version is newer.
 func NeedsUpdate(currentVersion, latestTag string) bool {
-	// Strip leading "v" for comparison.
-	current := strings.TrimPrefix(currentVersion, "v")
-	latest := strings.TrimPrefix(latestTag, "v")
-	return current != latest
+	current := normalizeVersion(currentVersion)
+	latest := normalizeVersion(latestTag)
+	// If current is not a valid semver (e.g. "dev"), always offer update.
+	if !semver.IsValid(current) {
+		return true
+	}
+	if !semver.IsValid(latest) {
+		return false
+	}
+	return semver.Compare(latest, current) > 0
+}
+
+// normalizeVersion ensures a leading "v" prefix and strips the non-standard
+// "-stable" suffix so that "0.3.0-stable" and "0.3.0" compare as equal.
+func normalizeVersion(v string) string {
+	v = strings.TrimSpace(v)
+	if !strings.HasPrefix(v, "v") && !strings.HasPrefix(v, "V") {
+		v = "v" + v
+	}
+	v = strings.TrimSuffix(v, "-stable")
+	return v
+}
+
+// FindChecksumAsset finds the checksums.txt asset in a release.
+func FindChecksumAsset(release *GitHubRelease) (*GitHubAsset, error) {
+	for _, a := range release.Assets {
+		if a.Name == "checksums.txt" {
+			return &a, nil
+		}
+	}
+	return nil, fmt.Errorf("checksums.txt not found in release assets")
+}
+
+// VerifyChecksum downloads checksums.txt, finds the expected hash for the
+// given archive name, and verifies the downloaded archive data matches.
+func VerifyChecksum(ctx context.Context, token string, checksumAssetID int, archiveName string, archiveData []byte) error {
+	checksumData, err := DownloadAsset(ctx, token, checksumAssetID)
+	if err != nil {
+		return fmt.Errorf("downloading checksums: %w", err)
+	}
+
+	expectedHash, err := parseChecksum(checksumData, archiveName)
+	if err != nil {
+		return err
+	}
+
+	actualHash := sha256.Sum256(archiveData)
+	actual := hex.EncodeToString(actualHash[:])
+
+	if actual != expectedHash {
+		return fmt.Errorf("checksum mismatch for %s\n  expected: %s\n  actual:   %s", archiveName, expectedHash, actual)
+	}
+
+	logger.Debug("checksum verified", "archive", archiveName, "hash", actual)
+	return nil
+}
+
+// parseChecksum parses a checksums file (format: "hash  filename" per line)
+// and returns the hash for the given filename.
+func parseChecksum(data []byte, filename string) (string, error) {
+	lines := strings.Split(string(data), "\n")
+	for _, line := range lines {
+		parts := strings.Fields(line)
+		if len(parts) == 2 && parts[1] == filename {
+			return parts[0], nil
+		}
+	}
+	return "", fmt.Errorf("no checksum found for %s in checksums.txt", filename)
 }
 
 // CurrentPlatform returns the current OS and architecture.

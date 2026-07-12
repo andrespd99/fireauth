@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"time"
 
@@ -29,13 +30,16 @@ The token is printed to stdout with no extra formatting, making it easy to use
 in shell pipelines:
 
   curl -H "Authorization: Bearer $(fireauth token)" https://api.example.com`,
+	Example: `  fireauth token
+  fireauth token -H
+  fireauth --project staging token`,
 	RunE: runToken,
 }
 
 func init() {
-	tokenCmd.Flags().BoolVar(&flagHeader, "header", false, "print as 'Authorization: Bearer <token>'")
-	tokenCmd.Flags().BoolVar(&flagCopy, "copy", false, "copy token to clipboard (macOS pbcopy)")
-	tokenCmd.Flags().BoolVar(&flagRefresh, "refresh", false, "force token refresh even if not expired")
+	tokenCmd.Flags().BoolVarP(&flagHeader, "header", "H", false, "print as 'Authorization: Bearer <token>'")
+	tokenCmd.Flags().BoolVarP(&flagCopy, "copy", "c", false, "copy token to clipboard")
+	tokenCmd.Flags().BoolVarP(&flagRefresh, "refresh", "r", false, "force token refresh even if not expired")
 	rootCmd.AddCommand(tokenCmd)
 }
 
@@ -52,9 +56,7 @@ func runToken(cmd *cobra.Command, args []string) error {
 
 	// Copy to clipboard if requested.
 	if flagCopy {
-		copyCmd := exec.Command("pbcopy")
-		copyCmd.Stdin = strings.NewReader(token)
-		if err := copyCmd.Run(); err != nil {
+		if err := copyToClipboard(token); err != nil {
 			logger.Warn("failed to copy to clipboard", "error", err)
 		} else {
 			fmt.Fprintln(os.Stderr, "✓ Token copied to clipboard")
@@ -69,6 +71,30 @@ func runToken(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+// copyToClipboard copies text to the system clipboard using the appropriate
+// platform-specific utility.
+func copyToClipboard(text string) error {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.Command("pbcopy")
+	case "linux":
+		if _, err := exec.LookPath("wl-copy"); err == nil {
+			cmd = exec.Command("wl-copy")
+		} else if _, err := exec.LookPath("xclip"); err == nil {
+			cmd = exec.Command("xclip", "-selection", "clipboard")
+		} else if _, err := exec.LookPath("xsel"); err == nil {
+			cmd = exec.Command("xsel", "--clipboard", "--input")
+		} else {
+			return fmt.Errorf("no clipboard utility found (install xclip, xsel, or wl-copy)")
+		}
+	default:
+		return fmt.Errorf("clipboard not supported on %s", runtime.GOOS)
+	}
+	cmd.Stdin = strings.NewReader(text)
+	return cmd.Run()
 }
 
 // getToken returns a valid ID token for the active session in the given project.

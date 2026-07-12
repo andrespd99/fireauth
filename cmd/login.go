@@ -23,7 +23,10 @@ var loginCmd = &cobra.Command{
 	Use:   "login",
 	Short: "Sign in with email and password",
 	Long:  "Authenticate against Firebase Auth and store the session locally.",
-	RunE:  runLogin,
+	Example: `  fireauth login
+  fireauth login --email user@example.com
+  fireauth --project production login`,
+	RunE: runLogin,
 }
 
 func init() {

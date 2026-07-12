@@ -14,7 +14,9 @@ var updateCmd = &cobra.Command{
 	Use:   "update",
 	Short: "Update fireauth to the latest version",
 	Long:  "Check for a new release on GitHub and replace the current binary.",
-	RunE:  runUpdate,
+	Example: `  fireauth update
+  fireauth update --check`,
+	RunE: runUpdate,
 }
 
 func init() {
@@ -23,11 +25,8 @@ func init() {
 }
 
 func runUpdate(cmd *cobra.Command, args []string) error {
-	// 1. Resolve GitHub token.
-	token, err := updater.ResolveToken()
-	if err != nil {
-		return err
-	}
+	// 1. Resolve GitHub token (optional for public repos).
+	token, _ := updater.ResolveToken()
 
 	// 2. Fetch latest release.
 	release, err := updater.FetchLatestRelease(cmd.Context(), token)
@@ -62,6 +61,16 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+
+	// 5.5. Verify checksum.
+	checksumAsset, err := updater.FindChecksumAsset(release)
+	if err != nil {
+		return fmt.Errorf("finding checksums: %w", err)
+	}
+	if err := updater.VerifyChecksum(cmd.Context(), token, checksumAsset.ID, asset.Name, archive); err != nil {
+		return fmt.Errorf("checksum verification failed: %w", err)
+	}
+	fmt.Printf("✓ Checksum verified\n")
 
 	// 6. Extract binary from tar.gz.
 	binary, err := updater.ExtractBinary(archive)

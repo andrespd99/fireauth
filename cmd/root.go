@@ -2,10 +2,12 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/andrespd99/fireauth/internal/logger"
 	"github.com/andrespd99/fireauth/internal/store"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 )
 
 var (
@@ -41,7 +43,7 @@ var rootCmd = &cobra.Command{
 
 func init() {
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "enable debug logging")
-	rootCmd.PersistentFlags().StringVar(&flagProject, "project", "", "override the active project for this command")
+	rootCmd.PersistentFlags().StringVarP(&flagProject, "project", "p", "", "override the active project for this command")
 	rootCmd.SetVersionTemplate(fmt.Sprintf("fireauth %s\n", version))
 }
 
@@ -59,4 +61,10 @@ func resolveProjectName() (string, error) {
 		return flagProject, nil
 	}
 	return store.GetActiveProjectName()
+}
+
+// isTerminal returns true if stdin is a terminal (used to decide whether to
+// show interactive prompts).
+func isTerminal() bool {
+	return term.IsTerminal(int(os.Stdin.Fd()))
 }

@@ -17,11 +17,13 @@ var sessionsCmd = &cobra.Command{
 	Use:   "sessions",
 	Short: "List all stored sessions",
 	Long:  "Display all locally stored Firebase Auth sessions with their token status.",
-	RunE:  runSessions,
+	Example: `  fireauth sessions
+  fireauth sessions --json`,
+	RunE: runSessions,
 }
 
 func init() {
-	sessionsCmd.Flags().BoolVar(&flagSessionsJSON, "json", false, "output as JSON")
+	sessionsCmd.Flags().BoolVarP(&flagSessionsJSON, "json", "j", false, "output as JSON")
 	rootCmd.AddCommand(sessionsCmd)
 }
 

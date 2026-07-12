@@ -131,6 +131,30 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 
 curl -fsSL -o "${TMP_DIR}/${ARCHIVE}" "$ASSET_URL"
 
+# --- Verify checksum ---
+# Fetch checksums.txt from the same release and verify the archive.
+if [ -n "$RELEASES_JSON" ]; then
+  CHECKSUMS_URL=$(echo "$RELEASES_JSON" | grep -o "\"browser_download_url\": \"https://[^\"]*checksums.txt\"" | head -1 | sed -E 's/.*"browser_download_url": "(.*)"/\1/')
+else
+  CHECKSUMS_URL=$(curl -fsSL -H "Accept: application/vnd.github+json" "${API_BASE}/releases/tags/${TAG}" | grep -o "\"browser_download_url\": \"https://[^\"]*checksums.txt\"" | head -1 | sed -E 's/.*"browser_download_url": "(.*)"/\1/')
+fi
+
+if [ -n "$CHECKSUMS_URL" ]; then
+  echo "Verifying checksum..."
+  curl -fsSL -o "${TMP_DIR}/checksums.txt" "$CHECKSUMS_URL"
+  EXPECTED=$(grep " ${ARCHIVE}$" "${TMP_DIR}/checksums.txt" | awk '{print $1}')
+  if [ -n "$EXPECTED" ]; then
+    ACTUAL=$(shasum -a 256 "${TMP_DIR}/${ARCHIVE}" | awk '{print $1}')
+    if [ "$EXPECTED" != "$ACTUAL" ]; then
+      echo "Error: checksum mismatch for ${ARCHIVE}" >&2
+      echo "  Expected: $EXPECTED" >&2
+      echo "  Actual:   $ACTUAL" >&2
+      exit 1
+    fi
+    echo "Checksum verified."
+  fi
+fi
+
 tar -xzf "${TMP_DIR}/${ARCHIVE}" -C "$TMP_DIR"
 
 # --- Install ---

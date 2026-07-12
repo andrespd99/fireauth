@@ -16,8 +16,10 @@ var switchCmd = &cobra.Command{
 	Use:   "switch [email]",
 	Short: "Switch the active session",
 	Long:  "Switch the active session to a different stored user within the active project. If no email is provided, an interactive picker is shown.",
-	Args:  cobra.MaximumNArgs(1),
-	RunE:  runSwitch,
+	Example: `  fireauth switch user@example.com
+  fireauth switch`,
+	Args: cobra.MaximumNArgs(1),
+	RunE: runSwitch,
 }
 
 func init() {
