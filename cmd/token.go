@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cashea-bnpl/auth-devtools/internal/firebase"
-	"github.com/cashea-bnpl/auth-devtools/internal/logger"
-	"github.com/cashea-bnpl/auth-devtools/internal/store"
+	"github.com/andrespd99/fireauth/internal/firebase"
+	"github.com/andrespd99/fireauth/internal/logger"
+	"github.com/andrespd99/fireauth/internal/store"
 	"github.com/spf13/cobra"
 )
 
@@ -27,7 +27,7 @@ var tokenCmd = &cobra.Command{
 The token is printed to stdout with no extra formatting, making it easy to use
 in shell pipelines:
 
-  curl -H "Authorization: Bearer $(cashea-auth token)" https://api.example.com`,
+  curl -H "Authorization: Bearer $(fireauth token)" https://api.example.com`,
 	RunE: runToken,
 }
 
@@ -44,44 +44,10 @@ func runToken(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	p, sess, err := store.GetSession(projectName, "")
+	token, err := getToken(projectName, flagRefresh)
 	if err != nil {
 		return err
 	}
-
-	// Check if refresh is needed.
-	refreshWindow := 5 * time.Minute
-	needsRefresh := flagRefresh || time.Now().Add(refreshWindow).After(sess.TokenExpiry)
-
-	if needsRefresh {
-		if flagRefresh {
-			logger.Debug("forced token refresh requested")
-		} else {
-			logger.Debug("token expired or expiring soon",
-				"expiry", sess.TokenExpiry.Format(time.RFC3339),
-				"remaining", time.Until(sess.TokenExpiry).String())
-		}
-
-		result, err := firebase.RefreshIDToken(p.FirebaseAPIKey, sess.RefreshToken)
-		if err != nil {
-			return fmt.Errorf("refreshing token: %w\nRun 'cashea-auth login' to re-authenticate", err)
-		}
-
-		// Update session with new tokens.
-		sess.IDToken = result.IDToken
-		sess.RefreshToken = result.RefreshToken
-		sess.TokenExpiry = firebase.TokenExpiry(result.ExpiresIn)
-
-		if err := store.UpdateSession(projectName, sess); err != nil {
-			return fmt.Errorf("saving refreshed session: %w", err)
-		}
-		logger.Debug("token refreshed", "new_expiry", sess.TokenExpiry.Format(time.RFC3339))
-	} else {
-		logger.Debug("token still valid",
-			"remaining", time.Until(sess.TokenExpiry).String())
-	}
-
-	token := sess.IDToken
 
 	// Copy to clipboard if requested.
 	if flagCopy {
@@ -102,4 +68,48 @@ func runToken(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+// getToken returns a valid ID token for the active session in the given project.
+// It refreshes the token if expired or within the refresh window (5 minutes),
+// or if forceRefresh is true. The refreshed session is persisted to disk.
+func getToken(projectName string, forceRefresh bool) (string, error) {
+	p, sess, err := store.GetSession(projectName, "")
+	if err != nil {
+		return "", err
+	}
+
+	// Check if refresh is needed.
+	refreshWindow := 5 * time.Minute
+	needsRefresh := forceRefresh || time.Now().Add(refreshWindow).After(sess.TokenExpiry)
+
+	if needsRefresh {
+		if forceRefresh {
+			logger.Debug("forced token refresh requested")
+		} else {
+			logger.Debug("token expired or expiring soon",
+				"expiry", sess.TokenExpiry.Format(time.RFC3339),
+				"remaining", time.Until(sess.TokenExpiry).String())
+		}
+
+		result, err := firebase.RefreshIDToken(p.FirebaseAPIKey, sess.RefreshToken)
+		if err != nil {
+			return "", fmt.Errorf("refreshing token: %w\nRun 'fireauth login' to re-authenticate", err)
+		}
+
+		// Update session with new tokens.
+		sess.IDToken = result.IDToken
+		sess.RefreshToken = result.RefreshToken
+		sess.TokenExpiry = firebase.TokenExpiry(result.ExpiresIn)
+
+		if err := store.UpdateSession(projectName, sess); err != nil {
+			return "", fmt.Errorf("saving refreshed session: %w", err)
+		}
+		logger.Debug("token refreshed", "new_expiry", sess.TokenExpiry.Format(time.RFC3339))
+	} else {
+		logger.Debug("token still valid",
+			"remaining", time.Until(sess.TokenExpiry).String())
+	}
+
+	return sess.IDToken, nil
 }

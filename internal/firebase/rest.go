@@ -11,13 +11,17 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cashea-bnpl/auth-devtools/internal/logger"
+	"github.com/andrespd99/fireauth/internal/logger"
 )
 
 // Default Firebase Auth REST API base URLs. Overridable for testing.
 var (
 	SignInBaseURL  = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword"
 	RefreshBaseURL = "https://securetoken.googleapis.com/v1/token"
+
+	// RefererHeader is sent with all Firebase REST requests to satisfy API key
+	// referrer restrictions. Overridable for testing.
+	RefererHeader = "http://localhost"
 )
 
 // --- Sign-in ---
@@ -63,7 +67,14 @@ func SignInWithPassword(apiKey, email, password string) (*SignInResponse, error)
 		return nil, fmt.Errorf("marshalling sign-in request: %w", err)
 	}
 
-	resp, err := http.Post(reqURL, "application/json", bytes.NewReader(body))
+	req, err := http.NewRequest("POST", reqURL, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("building sign-in request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Referer", RefererHeader)
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("sign-in HTTP request failed: %w", err)
 	}
@@ -120,7 +131,14 @@ func RefreshIDToken(apiKey, refreshToken string) (*RefreshResponse, error) {
 	form.Set("grant_type", "refresh_token")
 	form.Set("refresh_token", refreshToken)
 
-	resp, err := http.Post(reqURL, "application/x-www-form-urlencoded", strings.NewReader(form.Encode()))
+	req, err := http.NewRequest("POST", reqURL, strings.NewReader(form.Encode()))
+	if err != nil {
+		return nil, fmt.Errorf("building refresh request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Referer", RefererHeader)
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("refresh HTTP request failed: %w", err)
 	}
@@ -169,9 +187,9 @@ func friendlyError(msg string) string {
 	case "INVALID_LOGIN_CREDENTIALS":
 		return "invalid email or password"
 	case "TOKEN_EXPIRED":
-		return "session expired — run 'cashea-auth login' to re-authenticate"
+		return "session expired — run 'fireauth login' to re-authenticate"
 	case "INVALID_REFRESH_TOKEN":
-		return "refresh token is invalid — run 'cashea-auth login' to re-authenticate"
+		return "refresh token is invalid — run 'fireauth login' to re-authenticate"
 	default:
 		return msg
 	}

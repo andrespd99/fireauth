@@ -1,14 +1,14 @@
 package cmd
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"sort"
 	"strings"
 
-	"github.com/cashea-bnpl/auth-devtools/internal/logger"
-	"github.com/cashea-bnpl/auth-devtools/internal/store"
+	"github.com/andrespd99/fireauth/internal/logger"
+	"github.com/andrespd99/fireauth/internal/store"
+	"github.com/andrespd99/fireauth/internal/tui"
 	"github.com/spf13/cobra"
 )
 
@@ -36,7 +36,7 @@ func runSwitch(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(sessions) == 0 {
-		return fmt.Errorf("no sessions stored in project %q — run 'cashea-auth login' first", projectName)
+		return fmt.Errorf("no sessions stored in project %q — run 'fireauth login' first", projectName)
 	}
 
 	var targetEmail string
@@ -44,7 +44,6 @@ func runSwitch(cmd *cobra.Command, args []string) error {
 	if len(args) == 1 {
 		targetEmail = args[0]
 	} else {
-		// Interactive picker.
 		emails := make([]string, 0, len(sessions))
 		for email := range sessions {
 			emails = append(emails, email)
@@ -56,28 +55,15 @@ func runSwitch(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		fmt.Println()
-		for i, email := range emails {
-			marker := " "
-			if email == p.ActiveSession {
-				marker = "*"
-			}
-			fmt.Printf("  %s %d) %s\n", marker, i+1, email)
-		}
-		fmt.Println()
-		fmt.Print("Select session number: ")
-
-		reader := bufio.NewReader(os.Stdin)
-		input, err := reader.ReadString('\n')
+		selected, err := tui.Pick("Select session", emails, p.ActiveSession)
 		if err != nil {
-			return fmt.Errorf("reading input: %w", err)
+			return err
 		}
-
-		num, err := parseInt(strings.TrimSpace(input))
-		if err != nil || num < 1 || num > len(emails) {
-			return fmt.Errorf("invalid selection")
+		if selected == "" {
+			fmt.Fprintln(os.Stderr, "cancelled")
+			return nil
 		}
-		targetEmail = emails[num-1]
+		targetEmail = selected
 	}
 
 	// Validate the target exists.

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -14,8 +15,8 @@ func setupTestDir(t *testing.T) string {
 	t.Helper()
 	tmp := t.TempDir()
 	t.Setenv("HOME", tmp)
-	// Create the .cashea-auth dir inside the temp home.
-	dir := filepath.Join(tmp, ".cashea-auth")
+	// Create the .fireauth dir inside the temp home.
+	dir := filepath.Join(tmp, ".fireauth")
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		t.Fatal(err)
 	}
@@ -166,7 +167,21 @@ func TestDeleteProject(t *testing.T) {
 func TestRenameProject(t *testing.T) {
 	setupTestDir(t)
 
-	p := &Project{Name: "staging", FirebaseAPIKey: "key", ActiveSession: "user@example.com"}
+	// Use a real service account file inside the project dir so we can verify
+	// the path is rewritten and still exists after the rename.
+	pdir, err := filepathGlob("staging")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(pdir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	saPath := filepath.Join(pdir, "service-account.json")
+	if err := os.WriteFile(saPath, []byte("{}"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	p := &Project{Name: "staging", FirebaseAPIKey: "key", ServiceAccountPath: saPath, ActiveSession: "user@example.com"}
 	if err := SaveProject(p); err != nil {
 		t.Fatal(err)
 	}
@@ -203,6 +218,18 @@ func TestRenameProject(t *testing.T) {
 	}
 	if loaded.ActiveSession != "user@example.com" {
 		t.Errorf("ActiveSession = %q, want %q", loaded.ActiveSession, "user@example.com")
+	}
+
+	// The service account path should be rewritten to the new project dir and
+	// the file should still exist at the new location.
+	if loaded.ServiceAccountPath == saPath {
+		t.Errorf("ServiceAccountPath was not rewritten, still %q", loaded.ServiceAccountPath)
+	}
+	if !strings.Contains(loaded.ServiceAccountPath, filepath.Join("projects", "production")) {
+		t.Errorf("ServiceAccountPath = %q, expected it to point inside the 'production' project dir", loaded.ServiceAccountPath)
+	}
+	if _, err := os.Stat(loaded.ServiceAccountPath); err != nil {
+		t.Errorf("service account file not found at rewritten path %q: %v", loaded.ServiceAccountPath, err)
 	}
 
 	// Sessions should survive the rename.
@@ -546,8 +573,8 @@ func TestProjectJSON_RoundTrip(t *testing.T) {
 	p := &Project{
 		Name:               "production",
 		FirebaseAPIKey:     "AIzaSy_test",
-		ServiceAccountPath: "/home/user/.cashea-auth/projects/production/service-account.json",
-		ActiveSession:      "dev@cashea.com",
+		ServiceAccountPath: "/home/user/.fireauthojects/production/service-account.json",
+		ActiveSession:      "dev@example.com",
 	}
 	data, err := json.Marshal(p)
 	if err != nil {
@@ -691,5 +718,5 @@ func filepathGlob(projectName string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(home, ".cashea-auth", "projects", projectName), nil
+	return filepath.Join(home, ".fireauth", "projects", projectName), nil
 }

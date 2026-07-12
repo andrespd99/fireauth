@@ -14,13 +14,13 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/cashea-bnpl/auth-devtools/internal/logger"
+	"github.com/andrespd99/fireauth/internal/logger"
 )
 
 const (
-	repoOwner = "cashea-bnpl"
-	repoName  = "auth-devtools"
-	binaryName = "cashea-auth"
+	repoOwner = "andrespd99"
+	repoName  = "fireauth"
+	binaryName = "fireauth"
 )
 
 // GitHubAPIBase is the base URL for GitHub API calls. Overridable for testing.
@@ -55,7 +55,7 @@ func ResolveToken() (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("GITHUB_TOKEN is required (private repo)\n\n  Option 1: export GITHUB_TOKEN=ghp_...\n  Option 2: install gh CLI and run 'gh auth login'")
+	return "", fmt.Errorf("GITHUB_TOKEN is required\n\n  Option 1: export GITHUB_TOKEN=ghp_...\n  Option 2: install gh CLI and run 'gh auth login'")
 }
 
 // FetchLatestRelease fetches the latest release from GitHub.

@@ -21,9 +21,12 @@ func TestSignInWithPassword_Success(t *testing.T) {
 		if req.Email != "test@example.com" {
 			t.Errorf("email = %q, want %q", req.Email, "test@example.com")
 		}
-		if !req.ReturnSecureToken {
-			t.Error("expected returnSecureToken to be true")
-		}
+	if !req.ReturnSecureToken {
+		t.Error("expected returnSecureToken to be true")
+	}
+	if got := r.Header.Get("Referer"); got != "http://localhost" {
+		t.Errorf("Referer = %q, want %q", got, "http://localhost")
+	}
 
 		resp := SignInResponse{
 			IDToken:      "test-id-token-12345",
@@ -109,9 +112,12 @@ func TestRefreshIDToken_Success(t *testing.T) {
 		if r.PostForm.Get("grant_type") != "refresh_token" {
 			t.Errorf("grant_type = %q, want refresh_token", r.PostForm.Get("grant_type"))
 		}
-		if r.PostForm.Get("refresh_token") != "old-refresh-token" {
-			t.Errorf("refresh_token = %q", r.PostForm.Get("refresh_token"))
-		}
+	if r.PostForm.Get("refresh_token") != "old-refresh-token" {
+		t.Errorf("refresh_token = %q", r.PostForm.Get("refresh_token"))
+	}
+	if got := r.Header.Get("Referer"); got != "http://localhost" {
+		t.Errorf("Referer = %q, want %q", got, "http://localhost")
+	}
 
 		resp := RefreshResponse{
 			IDToken:      "new-id-token",
@@ -180,6 +186,56 @@ func TestTokenExpiry_Invalid(t *testing.T) {
 	expiry := TokenExpiry("invalid")
 	if expiry.Before(before.Add(3599 * time.Second)) {
 		t.Error("expected ~1 hour default for invalid expiresIn")
+	}
+}
+
+func TestSignInWithPassword_CustomReferer(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Referer"); got != "https://myapp.example.com" {
+			t.Errorf("Referer = %q, want %q", got, "https://myapp.example.com")
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(SignInResponse{})
+	}))
+	defer server.Close()
+
+	origURL := SignInBaseURL
+	origReferer := RefererHeader
+	SignInBaseURL = server.URL
+	RefererHeader = "https://myapp.example.com"
+	defer func() {
+		SignInBaseURL = origURL
+		RefererHeader = origReferer
+	}()
+
+	_, err := SignInWithPassword("fake-api-key", "test@example.com", "pass")
+	if err != nil {
+		t.Fatalf("SignInWithPassword: %v", err)
+	}
+}
+
+func TestRefreshIDToken_CustomReferer(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Referer"); got != "https://myapp.example.com" {
+			t.Errorf("Referer = %q, want %q", got, "https://myapp.example.com")
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(RefreshResponse{})
+	}))
+	defer server.Close()
+
+	origURL := RefreshBaseURL
+	origReferer := RefererHeader
+	RefreshBaseURL = server.URL
+	RefererHeader = "https://myapp.example.com"
+	defer func() {
+		RefreshBaseURL = origURL
+		RefererHeader = origReferer
+	}()
+
+	_, err := RefreshIDToken("fake-api-key", "refresh-token")
+	if err != nil {
+		t.Fatalf("RefreshIDToken: %v", err)
 	}
 }
 

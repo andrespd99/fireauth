@@ -1,15 +1,17 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
-	"github.com/cashea-bnpl/auth-devtools/internal/logger"
+	"github.com/andrespd99/fireauth/internal/logger"
 )
 
-const dirName = ".cashea-auth"
+const dirName = ".fireauth"
 
-// Dir returns the absolute path to the configuration directory (~/.cashea-auth).
+// Dir returns the absolute path to the configuration directory (~/.fireauth).
 func Dir() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -41,7 +43,7 @@ func FilePath(name string) (string, error) {
 	return filepath.Join(dir, name), nil
 }
 
-// ProjectsDir returns the path to the projects directory (~/.cashea-auth/projects).
+// ProjectsDir returns the path to the projects directory (~/.fireauth/projects).
 func ProjectsDir() (string, error) {
 	dir, err := Dir()
 	if err != nil {
@@ -51,19 +53,40 @@ func ProjectsDir() (string, error) {
 }
 
 // ProjectDir returns the path to a specific project's directory.
+// The name is cleaned with filepath.Clean to neutralize path traversal.
 func ProjectDir(name string) (string, error) {
+	cleaned := filepath.Clean(name)
+	if err := validateProjectName(cleaned); err != nil {
+		return "", err
+	}
 	pdir, err := ProjectsDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(pdir, name), nil
+	return filepath.Join(pdir, cleaned), nil
 }
 
 // ProjectFilePath returns the full path to a file inside a project's directory.
 func ProjectFilePath(projectName, filename string) (string, error) {
-	pdir, err := ProjectDir(projectName)
+	cleaned := filepath.Clean(projectName)
+	if err := validateProjectName(cleaned); err != nil {
+		return "", err
+	}
+	pdir, err := ProjectDir(cleaned)
 	if err != nil {
 		return "", err
 	}
 	return filepath.Join(pdir, filename), nil
+}
+
+// validateProjectName rejects names that could traverse outside the projects
+// directory (empty, path separators, "." or ".." segments).
+func validateProjectName(name string) error {
+	if name == "" || name == "." || name == ".." {
+		return fmt.Errorf("invalid project name %q", name)
+	}
+	if strings.ContainsAny(name, `/\`) {
+		return fmt.Errorf("invalid project name %q", name)
+	}
+	return nil
 }

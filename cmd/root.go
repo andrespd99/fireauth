@@ -3,8 +3,8 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/cashea-bnpl/auth-devtools/internal/logger"
-	"github.com/cashea-bnpl/auth-devtools/internal/store"
+	"github.com/andrespd99/fireauth/internal/logger"
+	"github.com/andrespd99/fireauth/internal/store"
 	"github.com/spf13/cobra"
 )
 
@@ -22,7 +22,7 @@ func SetVersion(v string) {
 }
 
 var rootCmd = &cobra.Command{
-	Use:     "cashea-auth",
+	Use:     "fireauth",
 	Short:   "Firebase auth utilities for testing",
 	Long:    "A CLI tool to authenticate against Firebase and manage bearer tokens for REST API testing.",
 	Version: version,
@@ -39,7 +39,7 @@ var rootCmd = &cobra.Command{
 func init() {
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "enable debug logging")
 	rootCmd.PersistentFlags().StringVar(&flagProject, "project", "", "override the active project for this command")
-	rootCmd.SetVersionTemplate(fmt.Sprintf("cashea-auth %s\n", version))
+	rootCmd.SetVersionTemplate(fmt.Sprintf("fireauth %s\n", version))
 }
 
 // Execute runs the root command.

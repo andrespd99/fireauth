@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/cashea-bnpl/auth-devtools/internal/config"
-	"github.com/cashea-bnpl/auth-devtools/internal/logger"
-	"github.com/cashea-bnpl/auth-devtools/internal/store"
+	"github.com/andrespd99/fireauth/internal/config"
+	"github.com/andrespd99/fireauth/internal/logger"
+	"github.com/andrespd99/fireauth/internal/store"
 	"github.com/spf13/cobra"
 )
 
@@ -100,9 +100,25 @@ func runInit(cmd *cobra.Command, args []string) error {
 	}
 	logger.Debug("service account validated", "project_id", projectID)
 
-	// Derive project name from service account if not provided.
+	// Derive project name interactively if not provided.
 	if projectName == "" {
-		projectName = projectID
+		projects, _ := store.ListProjects()
+		defaultName := "default"
+		for _, p := range projects {
+			if p == defaultName {
+				defaultName = projectID
+				break
+			}
+		}
+		fmt.Printf("Project name [%s]: ", defaultName)
+		input, err := reader.ReadString('\n')
+		if err != nil {
+			return fmt.Errorf("reading project name: %w", err)
+		}
+		projectName = strings.TrimSpace(input)
+		if projectName == "" {
+			projectName = defaultName
+		}
 	}
 
 	// 5. Create project directory and copy service account into it.
@@ -149,7 +165,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 	projects, _ := store.ListProjects()
 
 	fmt.Println()
-	fmt.Println("✓ cashea-auth initialized successfully!")
+	fmt.Println("✓ fireauth initialized successfully!")
 	fmt.Printf("  Project:          %s\n", projectName)
 	fmt.Printf("  Firebase Project: %s\n", projectID)
 	fmt.Printf("  Config directory: %s\n", dir)
@@ -164,6 +180,6 @@ func runInit(cmd *cobra.Command, args []string) error {
 		}
 	}
 	fmt.Println()
-	fmt.Println("Next step: run 'cashea-auth login' to sign in.")
+	fmt.Println("Next step: run 'fireauth login' to sign in.")
 	return nil
 }

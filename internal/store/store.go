@@ -7,8 +7,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/cashea-bnpl/auth-devtools/internal/config"
-	"github.com/cashea-bnpl/auth-devtools/internal/logger"
+	"github.com/andrespd99/fireauth/internal/config"
+	"github.com/andrespd99/fireauth/internal/logger"
 )
 
 const (
@@ -32,7 +32,7 @@ func LoadConfig() (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("config not found — run 'cashea-auth init' first")
+			return nil, fmt.Errorf("config not found — run 'fireauth init' first")
 		}
 		return nil, err
 	}
@@ -141,12 +141,19 @@ func RenameProject(oldName, newName string) error {
 		return fmt.Errorf("renaming project directory: %w", err)
 	}
 
-	// Update the name field inside project.json.
+	// Update the name and service account path inside project.json.
 	p, err := LoadProject(newName)
 	if err != nil {
 		return err
 	}
 	p.Name = newName
+	// The service account file lives inside the project directory, so its
+	// absolute path changed when the directory was renamed. Rewrite it to
+	// point at the new location so downstream commands (e.g. 'me') can find it.
+	if p.ServiceAccountPath != "" {
+		saFile := filepath.Base(p.ServiceAccountPath)
+		p.ServiceAccountPath = filepath.Join(newPath, saFile)
+	}
 	// SaveProject writes to the new directory using p.Name, which now matches.
 	if err := SaveProject(p); err != nil {
 		return fmt.Errorf("updating project name: %w", err)
@@ -204,7 +211,7 @@ func GetActiveProjectName() (string, error) {
 		return "", err
 	}
 	if cfg.ActiveProject == "" {
-		return "", errors.New("no active project — run 'cashea-auth project use <name>'")
+		return "", errors.New("no active project — run 'fireauth project use <name>'")
 	}
 	return cfg.ActiveProject, nil
 }
@@ -217,6 +224,18 @@ func SetActiveProject(name string) error {
 	}
 	cfg.ActiveProject = name
 	logger.Debug("switching active project", "name", name)
+	return SaveConfig(cfg)
+}
+
+// ClearActiveProject empties the active project name in the global config. It
+// creates an empty config if none exists yet.
+func ClearActiveProject() error {
+	cfg, err := LoadConfig()
+	if err != nil {
+		cfg = &Config{}
+	}
+	cfg.ActiveProject = ""
+	logger.Debug("clearing active project")
 	return SaveConfig(cfg)
 }
 
@@ -387,7 +406,7 @@ func GetSession(projectName, email string) (*Project, *Session, error) {
 		email = p.ActiveSession
 	}
 	if email == "" {
-		return nil, nil, errors.New("no active session — run 'cashea-auth login' first")
+		return nil, nil, errors.New("no active session — run 'fireauth login' first")
 	}
 
 	sessions, err := LoadSessions(projectName)
@@ -397,7 +416,7 @@ func GetSession(projectName, email string) (*Project, *Session, error) {
 
 	sess, ok := sessions[email]
 	if !ok {
-		return nil, nil, fmt.Errorf("session %q not found in project %q — run 'cashea-auth login'", email, projectName)
+		return nil, nil, fmt.Errorf("session %q not found in project %q — run 'fireauth login'", email, projectName)
 	}
 
 	logger.Debug("active session resolved", "project", projectName, "email", sess.Email, "uid", sess.UID)
