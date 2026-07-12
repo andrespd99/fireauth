@@ -22,16 +22,19 @@ func SetVersion(v string) {
 }
 
 var rootCmd = &cobra.Command{
-	Use:     "fireauth",
-	Short:   "Firebase auth utilities for testing",
-	Long:    "A CLI tool to authenticate against Firebase and manage bearer tokens for REST API testing.",
-	Version: version,
+	Use:          "fireauth",
+	Short:        "Firebase auth utilities for testing",
+	Long:         "A CLI tool to authenticate against Firebase and manage bearer tokens for REST API testing.",
+	Version:      version,
+	SilenceUsage: true,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		logger.Init(verbose)
 		// Migrate legacy single-project config → multi-project, if needed.
 		// This is idempotent and only runs once.
 		if cmd.Name() != "init" {
-			_ = store.MigrateLegacyConfig()
+			if err := store.MigrateLegacyConfig(); err != nil {
+				logger.Warn("legacy config migration failed", "error", err)
+			}
 		}
 	},
 }

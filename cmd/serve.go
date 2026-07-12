@@ -79,7 +79,9 @@ type server struct {
 func writeJSON(w http.ResponseWriter, code int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	_ = json.NewEncoder(w).Encode(v)
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		logger.Warn("failed to write JSON response", "error", err)
+	}
 }
 
 // writeError writes a JSON error response.
@@ -163,17 +165,5 @@ func (s *server) handleMe(w http.ResponseWriter, r *http.Request) {
 		tokenStatus = fmt.Sprintf("valid (%s remaining)", formatDuration(remaining))
 	}
 
-	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"project":        projName,
-		"uid":             user.UID,
-		"email":           user.Email,
-		"email_verified":  user.EmailVerified,
-		"display_name":    user.DisplayName,
-		"disabled":        user.Disabled,
-		"custom_claims":   user.CustomClaims,
-		"created_at":      user.CreatedAt.Format(time.RFC3339),
-		"last_sign_in":    user.LastSignIn.Format(time.RFC3339),
-		"providers":       user.Providers,
-		"token_status":    tokenStatus,
-	})
+	writeJSON(w, http.StatusOK, buildUserResponse(projName, user, tokenStatus))
 }

@@ -18,8 +18,8 @@ import (
 )
 
 const (
-	repoOwner = "andrespd99"
-	repoName  = "fireauth"
+	repoOwner  = "andrespd99"
+	repoName   = "fireauth"
 	binaryName = "fireauth"
 )
 

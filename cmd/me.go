@@ -50,20 +50,10 @@ func runMe(cmd *cobra.Command, args []string) error {
 	}
 
 	if flagJSON {
-		output := map[string]interface{}{
-			"project":        projectName,
-			"uid":             user.UID,
-			"email":           user.Email,
-			"email_verified":  user.EmailVerified,
-			"display_name":    user.DisplayName,
-			"disabled":        user.Disabled,
-			"custom_claims":   user.CustomClaims,
-			"created_at":      user.CreatedAt.Format(time.RFC3339),
-			"last_sign_in":    user.LastSignIn.Format(time.RFC3339),
-			"providers":       user.Providers,
-			"token_status":    tokenStatus,
+		data, err := json.MarshalIndent(buildUserResponse(projectName, user, tokenStatus), "", "  ")
+		if err != nil {
+			return fmt.Errorf("marshalling user response: %w", err)
 		}
-		data, _ := json.MarshalIndent(output, "", "  ")
 		fmt.Println(string(data))
 		return nil
 	}
@@ -117,4 +107,36 @@ func formatDuration(d time.Duration) string {
 		return fmt.Sprintf("%ds", int(d.Seconds()))
 	}
 	return fmt.Sprintf("%dm", int(d.Minutes()))
+}
+
+// UserResponse is the JSON-serialisable representation of a user's details,
+// shared between the `me` CLI command and the `/me` serve endpoint.
+type UserResponse struct {
+	Project       string   `json:"project"`
+	UID           string   `json:"uid"`
+	Email         string   `json:"email"`
+	EmailVerified bool     `json:"email_verified"`
+	DisplayName   string   `json:"display_name"`
+	Disabled      bool     `json:"disabled"`
+	CustomClaims  any      `json:"custom_claims"`
+	CreatedAt     string   `json:"created_at"`
+	LastSignIn    string   `json:"last_sign_in"`
+	Providers     []string `json:"providers"`
+	TokenStatus   string   `json:"token_status"`
+}
+
+func buildUserResponse(projectName string, user *firebase.UserInfo, tokenStatus string) UserResponse {
+	return UserResponse{
+		Project:       projectName,
+		UID:           user.UID,
+		Email:         user.Email,
+		EmailVerified: user.EmailVerified,
+		DisplayName:   user.DisplayName,
+		Disabled:      user.Disabled,
+		CustomClaims:  user.CustomClaims,
+		CreatedAt:     user.CreatedAt.Format(time.RFC3339),
+		LastSignIn:    user.LastSignIn.Format(time.RFC3339),
+		Providers:     user.Providers,
+		TokenStatus:   tokenStatus,
+	}
 }
