@@ -30,7 +30,7 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 	}
 
 	// 2. Fetch latest release.
-	release, err := updater.FetchLatestRelease(token)
+	release, err := updater.FetchLatestRelease(cmd.Context(), token)
 	if err != nil {
 		return err
 	}
@@ -58,7 +58,7 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 	}
 
 	// 5. Download.
-	archive, err := updater.DownloadAsset(token, asset.ID)
+	archive, err := updater.DownloadAsset(cmd.Context(), token, asset.ID)
 	if err != nil {
 		return err
 	}

@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -32,7 +33,7 @@ func TestFetchLatestRelease_Success(t *testing.T) {
 	GitHubAPIBase = server.URL
 	defer func() { GitHubAPIBase = orig }()
 
-	release, err := FetchLatestRelease("test-token")
+	release, err := FetchLatestRelease(context.Background(), "test-token")
 	if err != nil {
 		t.Fatalf("FetchLatestRelease: %v", err)
 	}
@@ -54,7 +55,7 @@ func TestFetchLatestRelease_NotFound(t *testing.T) {
 	GitHubAPIBase = server.URL
 	defer func() { GitHubAPIBase = orig }()
 
-	_, err := FetchLatestRelease("test-token")
+	_, err := FetchLatestRelease(context.Background(), "test-token")
 	if err == nil {
 		t.Fatal("expected error for 404")
 	}
@@ -70,7 +71,7 @@ func TestFetchLatestRelease_Unauthorized(t *testing.T) {
 	GitHubAPIBase = server.URL
 	defer func() { GitHubAPIBase = orig }()
 
-	_, err := FetchLatestRelease("bad-token")
+	_, err := FetchLatestRelease(context.Background(), "bad-token")
 	if err == nil {
 		t.Fatal("expected error for 401")
 	}
@@ -132,7 +133,7 @@ func TestDownloadAsset_Success(t *testing.T) {
 	GitHubAPIBase = server.URL
 	defer func() { GitHubAPIBase = orig }()
 
-	data, err := DownloadAsset("test-token", 123)
+	data, err := DownloadAsset(context.Background(), "test-token", 123)
 	if err != nil {
 		t.Fatalf("DownloadAsset: %v", err)
 	}
@@ -151,7 +152,7 @@ func TestDownloadAsset_Failure(t *testing.T) {
 	GitHubAPIBase = server.URL
 	defer func() { GitHubAPIBase = orig }()
 
-	_, err := DownloadAsset("test-token", 123)
+	_, err := DownloadAsset(context.Background(), "test-token", 123)
 	if err == nil {
 		t.Fatal("expected error for 403")
 	}

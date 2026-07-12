@@ -34,7 +34,8 @@ func runMe(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(cmd.Context(), 30*time.Second)
+	defer cancel()
 	user, sess, projectName, err := getMe(ctx, projectName)
 	if err != nil {
 		return err
