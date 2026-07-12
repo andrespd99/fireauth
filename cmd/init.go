@@ -79,7 +79,10 @@ func runInit(cmd *cobra.Command, args []string) error {
 
 	// Expand ~ if present.
 	if strings.HasPrefix(saPath, "~/") {
-		home, _ := os.UserHomeDir()
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return fmt.Errorf("resolving home directory: %w", err)
+		}
 		saPath = filepath.Join(home, saPath[2:])
 	}
 
@@ -102,7 +105,10 @@ func runInit(cmd *cobra.Command, args []string) error {
 
 	// Derive project name interactively if not provided.
 	if projectName == "" {
-		projects, _ := store.ListProjects()
+		projects, err := store.ListProjects()
+		if err != nil {
+			logger.Warn("failed to list existing projects", "error", err)
+		}
 		defaultName := "default"
 		for _, p := range projects {
 			if p == defaultName {
@@ -162,7 +168,10 @@ func runInit(cmd *cobra.Command, args []string) error {
 	}
 
 	// Check if this is the only/first project.
-	projects, _ := store.ListProjects()
+	projects, err := store.ListProjects()
+	if err != nil {
+		logger.Warn("failed to list projects", "error", err)
+	}
 
 	fmt.Println()
 	fmt.Println("✓ fireauth initialized successfully!")

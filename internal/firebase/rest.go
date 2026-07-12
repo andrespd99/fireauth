@@ -89,7 +89,7 @@ func SignInWithPassword(apiKey, email, password string) (*SignInResponse, error)
 	if resp.StatusCode != http.StatusOK {
 		var fbErr FirebaseError
 		if err := json.Unmarshal(respBody, &fbErr); err == nil && fbErr.Error.Message != "" {
-			return nil, fmt.Errorf("firebase auth error: %s", friendlyError(fbErr.Error.Message))
+			return nil, fmt.Errorf("firebase auth error: %s", friendlyMessage(fbErr.Error.Message))
 		}
 		return nil, fmt.Errorf("firebase auth error: HTTP %d", resp.StatusCode)
 	}
@@ -153,7 +153,7 @@ func RefreshIDToken(apiKey, refreshToken string) (*RefreshResponse, error) {
 	if resp.StatusCode != http.StatusOK {
 		var fbErr FirebaseError
 		if err := json.Unmarshal(respBody, &fbErr); err == nil && fbErr.Error.Message != "" {
-			return nil, fmt.Errorf("token refresh error: %s", friendlyError(fbErr.Error.Message))
+			return nil, fmt.Errorf("token refresh error: %s", friendlyMessage(fbErr.Error.Message))
 		}
 		return nil, fmt.Errorf("token refresh error: HTTP %d", resp.StatusCode)
 	}
@@ -176,7 +176,7 @@ func truncate(s string, n int) string {
 	return s[:n] + "..."
 }
 
-func friendlyError(msg string) string {
+func friendlyMessage(msg string) string {
 	switch msg {
 	case "EMAIL_NOT_FOUND":
 		return "email not found — check the email address"

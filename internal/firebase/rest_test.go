@@ -21,12 +21,12 @@ func TestSignInWithPassword_Success(t *testing.T) {
 		if req.Email != "test@example.com" {
 			t.Errorf("email = %q, want %q", req.Email, "test@example.com")
 		}
-	if !req.ReturnSecureToken {
-		t.Error("expected returnSecureToken to be true")
-	}
-	if got := r.Header.Get("Referer"); got != "http://localhost" {
-		t.Errorf("Referer = %q, want %q", got, "http://localhost")
-	}
+		if !req.ReturnSecureToken {
+			t.Error("expected returnSecureToken to be true")
+		}
+		if got := r.Header.Get("Referer"); got != "http://localhost" {
+			t.Errorf("Referer = %q, want %q", got, "http://localhost")
+		}
 
 		resp := SignInResponse{
 			IDToken:      "test-id-token-12345",
@@ -112,12 +112,12 @@ func TestRefreshIDToken_Success(t *testing.T) {
 		if r.PostForm.Get("grant_type") != "refresh_token" {
 			t.Errorf("grant_type = %q, want refresh_token", r.PostForm.Get("grant_type"))
 		}
-	if r.PostForm.Get("refresh_token") != "old-refresh-token" {
-		t.Errorf("refresh_token = %q", r.PostForm.Get("refresh_token"))
-	}
-	if got := r.Header.Get("Referer"); got != "http://localhost" {
-		t.Errorf("Referer = %q, want %q", got, "http://localhost")
-	}
+		if r.PostForm.Get("refresh_token") != "old-refresh-token" {
+			t.Errorf("refresh_token = %q", r.PostForm.Get("refresh_token"))
+		}
+		if got := r.Header.Get("Referer"); got != "http://localhost" {
+			t.Errorf("Referer = %q, want %q", got, "http://localhost")
+		}
 
 		resp := RefreshResponse{
 			IDToken:      "new-id-token",
@@ -250,15 +250,15 @@ func TestTruncate(t *testing.T) {
 
 func TestFriendlyError(t *testing.T) {
 	tests := map[string]string{
-		"INVALID_PASSWORD":         "invalid password",
-		"EMAIL_NOT_FOUND":          "email not found — check the email address",
-		"USER_DISABLED":            "this account has been disabled",
+		"INVALID_PASSWORD":          "invalid password",
+		"EMAIL_NOT_FOUND":           "email not found — check the email address",
+		"USER_DISABLED":             "this account has been disabled",
 		"INVALID_LOGIN_CREDENTIALS": "invalid email or password",
-		"UNKNOWN_ERROR":            "UNKNOWN_ERROR",
+		"UNKNOWN_ERROR":             "UNKNOWN_ERROR",
 	}
 	for input, want := range tests {
-		if got := friendlyError(input); got != want {
-			t.Errorf("friendlyError(%q) = %q, want %q", input, got, want)
+		if got := friendlyMessage(input); got != want {
+			t.Errorf("friendlyMessage(%q) = %q, want %q", input, got, want)
 		}
 	}
 }

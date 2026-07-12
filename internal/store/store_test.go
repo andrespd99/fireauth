@@ -546,7 +546,7 @@ func TestProjectJSON_RoundTrip(t *testing.T) {
 	p := &Project{
 		Name:               "production",
 		FirebaseAPIKey:     "AIzaSy_test",
-		ServiceAccountPath: "/home/user/.fireauthojects/production/service-account.json",
+		ServiceAccountPath: "/home/user/.fireauth/projects/production/service-account.json",
 		ActiveSession:      "dev@example.com",
 	}
 	data, err := json.Marshal(p)

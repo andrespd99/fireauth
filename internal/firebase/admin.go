@@ -18,7 +18,7 @@ type UserInfo struct {
 	EmailVerified bool
 	DisplayName   string
 	Disabled      bool
-	CustomClaims  map[string]interface{}
+	CustomClaims  map[string]any
 	CreatedAt     time.Time
 	LastSignIn    time.Time
 	Providers     []string
