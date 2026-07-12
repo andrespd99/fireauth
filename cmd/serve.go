@@ -44,6 +44,8 @@ Query parameters for /token:
 Query parameters for /me:
   project   Override the active project for this request`,
 	RunE: runServe,
+	Example: `  fireauth serve
+  fireauth serve --addr 127.0.0.1:9876`,
 }
 
 func init() {

@@ -23,22 +23,28 @@ var projectListCmd = &cobra.Command{
 	Use:     "list",
 	Aliases: []string{"ls"},
 	Short:   "List all configured projects",
-	RunE:    runProjectList,
+	Example: `  fireauth project list
+  fireauth project ls`,
+	RunE: runProjectList,
 }
 
 var projectUseCmd = &cobra.Command{
 	Use:   "use [name]",
 	Short: "Switch the active project",
-	Args:  cobra.MaximumNArgs(1),
-	RunE:  runProjectUse,
+	Example: `  fireauth project use production
+  fireauth project use`,
+	Args: cobra.MaximumNArgs(1),
+	RunE: runProjectUse,
 }
 
 var projectRemoveCmd = &cobra.Command{
 	Use:     "remove [name]",
 	Aliases: []string{"rm"},
 	Short:   "Remove a configured project",
-	Args:    cobra.MaximumNArgs(1),
-	RunE:    runProjectRemove,
+	Example: `  fireauth project remove staging
+  fireauth project remove staging --force`,
+	Args: cobra.MaximumNArgs(1),
+	RunE: runProjectRemove,
 }
 
 var projectRenameCmd = &cobra.Command{
@@ -57,6 +63,7 @@ var projectUpdateKeyCmd = &cobra.Command{
 }
 
 var flagNewAPIKey string
+var flagForce bool
 
 func init() {
 	projectCmd.AddCommand(projectListCmd)
@@ -65,6 +72,7 @@ func init() {
 	projectCmd.AddCommand(projectRenameCmd)
 	projectCmd.AddCommand(projectUpdateKeyCmd)
 	projectUpdateKeyCmd.Flags().StringVar(&flagNewAPIKey, "api-key", "", "new Firebase Web API key (non-interactive)")
+	projectRemoveCmd.Flags().BoolVar(&flagForce, "force", false, "skip confirmation prompt")
 	rootCmd.AddCommand(projectCmd)
 }
 
@@ -199,6 +207,21 @@ func runProjectRemove(cmd *cobra.Command, args []string) error {
 	// Validate.
 	if !contains(projects, target) {
 		return fmt.Errorf("project %q not found", target)
+	}
+
+	// Confirm before deletion (unless --force).
+	if !flagForce && isTerminal() {
+		fmt.Printf("Remove project %q and all its sessions? [y/N] ", target)
+		reader := bufio.NewReader(os.Stdin)
+		input, err := reader.ReadString('\n')
+		if err != nil {
+			return fmt.Errorf("reading confirmation: %w", err)
+		}
+		input = strings.TrimSpace(strings.ToLower(input))
+		if input != "y" && input != "yes" {
+			fmt.Fprintln(os.Stderr, "cancelled")
+			return nil
+		}
 	}
 
 	wasActive := false

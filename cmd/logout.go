@@ -1,12 +1,17 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
+	"os"
+	"strings"
 
 	"github.com/andrespd99/fireauth/internal/logger"
 	"github.com/andrespd99/fireauth/internal/store"
 	"github.com/spf13/cobra"
 )
+
+var flagLogoutForce bool
 
 var logoutCmd = &cobra.Command{
 	Use:   "logout [email]",
@@ -17,6 +22,7 @@ var logoutCmd = &cobra.Command{
 }
 
 func init() {
+	logoutCmd.Flags().BoolVar(&flagLogoutForce, "force", false, "skip confirmation prompt")
 	rootCmd.AddCommand(logoutCmd)
 }
 
@@ -48,6 +54,21 @@ func runLogout(cmd *cobra.Command, args []string) error {
 
 	if _, ok := sessions[targetEmail]; !ok {
 		return fmt.Errorf("session %q not found in project %q", targetEmail, projectName)
+	}
+
+	// Confirm if removing the active session (unless --force).
+	if !flagLogoutForce && targetEmail == p.ActiveSession && isTerminal() {
+		fmt.Printf("Logout active session %q? [y/N] ", targetEmail)
+		reader := bufio.NewReader(os.Stdin)
+		input, err := reader.ReadString('\n')
+		if err != nil {
+			return fmt.Errorf("reading confirmation: %w", err)
+		}
+		input = strings.TrimSpace(strings.ToLower(input))
+		if input != "y" && input != "yes" {
+			fmt.Fprintln(os.Stderr, "cancelled")
+			return nil
+		}
 	}
 
 	// Remove the session.

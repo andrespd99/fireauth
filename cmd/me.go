@@ -24,7 +24,7 @@ var meCmd = &cobra.Command{
 }
 
 func init() {
-	meCmd.Flags().BoolVar(&flagJSON, "json", false, "output as JSON")
+	meCmd.Flags().BoolVarP(&flagJSON, "json", "j", false, "output as JSON")
 	rootCmd.AddCommand(meCmd)
 }
 
