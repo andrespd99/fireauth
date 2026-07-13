@@ -195,7 +195,9 @@ func TestSignInWithPassword_CustomReferer(t *testing.T) {
 			t.Errorf("Referer = %q, want %q", got, "https://myapp.example.com")
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(SignInResponse{})
+		if err := json.NewEncoder(w).Encode(SignInResponse{}); err != nil {
+			t.Errorf("encode response: %v", err)
+		}
 	}))
 	defer server.Close()
 
@@ -215,7 +217,9 @@ func TestRefreshIDToken_CustomReferer(t *testing.T) {
 			t.Errorf("Referer = %q, want %q", got, "https://myapp.example.com")
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(RefreshResponse{})
+		if err := json.NewEncoder(w).Encode(RefreshResponse{}); err != nil {
+			t.Errorf("encode response: %v", err)
+		}
 	}))
 	defer server.Close()
 
