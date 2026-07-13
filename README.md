@@ -1,4 +1,6 @@
-# fireauth
+<p align="center">
+  <img src=".github/banner.svg" alt="fireauth" width="600" />
+</p>
 
 [![CI](https://github.com/andrespd99/fireauth/actions/workflows/ci.yml/badge.svg)](https://github.com/andrespd99/fireauth/actions/workflows/ci.yml)
 [![Release](https://github.com/andrespd99/fireauth/actions/workflows/release.yml/badge.svg)](https://github.com/andrespd99/fireauth/actions/workflows/release.yml)
