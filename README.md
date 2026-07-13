@@ -86,6 +86,7 @@ fireauth me --json | jq -r .email_verified
 ### Homebrew (recommended)
 
 ```bash
+brew trust --formula andrespd99/fireauth/fireauth # since brew 6.0.0
 brew tap andrespd99/fireauth
 brew install fireauth
 ```
