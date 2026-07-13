@@ -37,7 +37,7 @@ func TestSignInWithPassword_Success(t *testing.T) {
 			DisplayName:  "Test User",
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
@@ -64,7 +64,7 @@ func TestSignInWithPassword_WrongPassword(t *testing.T) {
 		resp := FirebaseError{}
 		resp.Error.Code = 400
 		resp.Error.Message = "INVALID_PASSWORD"
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
@@ -87,7 +87,7 @@ func TestSignInWithPassword_EmailNotFound(t *testing.T) {
 		resp := FirebaseError{}
 		resp.Error.Code = 400
 		resp.Error.Message = "EMAIL_NOT_FOUND"
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
@@ -126,7 +126,7 @@ func TestRefreshIDToken_Success(t *testing.T) {
 			UserID:       "uid-123",
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
@@ -152,7 +152,7 @@ func TestRefreshIDToken_Expired(t *testing.T) {
 		resp := FirebaseError{}
 		resp.Error.Code = 400
 		resp.Error.Message = "TOKEN_EXPIRED"
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 

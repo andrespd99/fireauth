@@ -155,8 +155,8 @@ func (s *server) handleMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tokenStatus := "valid"
 	remaining := time.Until(sess.TokenExpiry)
+	var tokenStatus string
 	if remaining <= 0 {
 		tokenStatus = "EXPIRED"
 	} else {

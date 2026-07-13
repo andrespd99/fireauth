@@ -41,8 +41,8 @@ func runMe(cmd *cobra.Command, args []string) error {
 	}
 
 	// Token status.
-	tokenStatus := "valid"
 	remaining := time.Until(sess.TokenExpiry)
+	var tokenStatus string
 	if remaining <= 0 {
 		tokenStatus = "EXPIRED"
 	} else {
