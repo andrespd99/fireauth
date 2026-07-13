@@ -3,7 +3,6 @@ package firebase
 import (
 	"context"
 	"fmt"
-	"os"
 	"time"
 
 	fb "firebase.google.com/go/v4"
@@ -41,11 +40,7 @@ func NewAdminClient(serviceAccountPath string) (*AdminClient, error) {
 	logger.Debug("initialising firebase admin SDK", "service_account", serviceAccountPath)
 
 	ctx := context.Background()
-	creds, err := os.ReadFile(serviceAccountPath)
-	if err != nil {
-		return nil, fmt.Errorf("reading service account file: %w", err)
-	}
-	opt := option.WithCredentialsJSON(creds)
+	opt := option.WithAuthCredentialsFile(option.ServiceAccount, serviceAccountPath)
 	app, err := fb.NewApp(ctx, nil, opt)
 	if err != nil {
 		return nil, fmt.Errorf("initialising firebase app: %w", err)
