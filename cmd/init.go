@@ -139,11 +139,28 @@ func runInit(cmd *cobra.Command, args []string) error {
 	logger.Debug("service account copied", "dest", destPath)
 
 	// 6. Save project config.
+	referer := flagReferer
+	if referer == "" {
+		fmt.Print("Referer URL [http://localhost]: ")
+		input, err := reader.ReadString('\n')
+		if err != nil {
+			return fmt.Errorf("reading referer URL: %w", err)
+		}
+		referer = strings.TrimSpace(input)
+		if referer == "" {
+			referer = "http://localhost"
+		} else {
+			referer = normalizeReferer(referer)
+		}
+	} else {
+		referer = normalizeReferer(referer)
+	}
+
 	p := &store.Project{
 		Name:               projectName,
 		FirebaseAPIKey:     apiKey,
 		ServiceAccountPath: destPath,
-		Referer:            flagReferer,
+		Referer:            referer,
 	}
 	if err := store.SaveProject(p); err != nil {
 		return fmt.Errorf("saving project config: %w", err)
@@ -185,4 +202,14 @@ func runInit(cmd *cobra.Command, args []string) error {
 	fmt.Println()
 	fmt.Println("Next step: run 'fireauth login' to sign in.")
 	return nil
+}
+
+// normalizeReferer ensures the referer value has a URL scheme. If the input has
+// no scheme (e.g. "myweb.example.com" or "myweb.example.com/path"), it defaults
+// to "https://". Inputs that already include a scheme are left unchanged.
+func normalizeReferer(referer string) string {
+	if strings.Contains(referer, "://") {
+		return referer
+	}
+	return "https://" + referer
 }
