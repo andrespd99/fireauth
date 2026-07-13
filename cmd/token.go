@@ -92,7 +92,7 @@ func getToken(projectName string, forceRefresh bool) (string, error) {
 				"remaining", time.Until(sess.TokenExpiry).String())
 		}
 
-		result, err := firebase.RefreshIDToken(p.FirebaseAPIKey, sess.RefreshToken)
+		result, err := firebase.RefreshIDToken(p.FirebaseAPIKey, sess.RefreshToken, p.Referer)
 		if err != nil {
 			return "", fmt.Errorf("refreshing token: %w\nRun 'fireauth login' to re-authenticate", err)
 		}

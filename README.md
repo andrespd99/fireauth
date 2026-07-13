@@ -69,6 +69,13 @@ For non-interactive setup (e.g., scripting):
 fireauth init --api-key "AIzaSy..." --service-account ~/path/to/service-account.json
 ```
 
+If your Firebase API key is restricted to specific referrer domains, pass the
+`--referer` (`-r`) flag so the Firebase REST requests send the matching header:
+
+```bash
+fireauth init --api-key "AIzaSy..." --service-account ~/path/to/service-account.json --referer "https://myapp.example.com"
+```
+
 You can also specify the project name explicitly:
 
 ```bash
