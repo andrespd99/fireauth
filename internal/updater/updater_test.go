@@ -24,7 +24,7 @@ func TestFetchLatestRelease_Success(t *testing.T) {
 				{ID: 3, Name: "checksums.txt"},
 			},
 		}
-		json.NewEncoder(w).Encode(release)
+		_ = json.NewEncoder(w).Encode(release)
 	}))
 	defer server.Close()
 
@@ -124,7 +124,7 @@ func TestDownloadAsset_Success(t *testing.T) {
 		if r.Header.Get("Accept") != "application/octet-stream" {
 			t.Errorf("Accept header = %q", r.Header.Get("Accept"))
 		}
-		w.Write(expectedData)
+		_, _ = w.Write(expectedData)
 	}))
 	defer server.Close()
 
