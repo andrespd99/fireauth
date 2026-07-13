@@ -77,7 +77,7 @@ func runLogin(cmd *cobra.Command, args []string) error {
 	logger.Debug("attempting sign-in", "project", projectName, "email", email)
 
 	// Sign in via Firebase REST API.
-	result, err := firebase.SignInWithPassword(p.FirebaseAPIKey, email, password)
+	result, err := firebase.SignInWithPassword(p.FirebaseAPIKey, email, password, p.Referer)
 	if err != nil {
 		return err
 	}

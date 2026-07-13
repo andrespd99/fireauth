@@ -24,6 +24,7 @@ type Project struct {
 	FirebaseAPIKey     string `json:"firebase_api_key"`
 	ServiceAccountPath string `json:"service_account_path"`
 	ActiveSession      string `json:"active_session"`
+	Referer            string `json:"referer,omitempty"`
 }
 
 // Session represents a single authenticated user session.
