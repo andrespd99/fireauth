@@ -18,6 +18,7 @@ var (
 	flagAPIKey         string
 	flagServiceAccount string
 	flagProjectName    string
+	flagReferer        string
 )
 
 var initCmd = &cobra.Command{
@@ -32,6 +33,7 @@ func init() {
 	initCmd.Flags().StringVar(&flagAPIKey, "api-key", "", "Firebase Web API key (non-interactive)")
 	initCmd.Flags().StringVar(&flagServiceAccount, "service-account", "", "path to Firebase service account JSON (non-interactive)")
 	initCmd.Flags().StringVar(&flagProjectName, "name", "", "project name (defaults to the Firebase project_id from the service account)")
+	initCmd.Flags().StringVarP(&flagReferer, "referer", "r", "", "Referer header value sent with Firebase REST requests (defaults to http://localhost)")
 	rootCmd.AddCommand(initCmd)
 }
 
@@ -141,6 +143,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 		Name:               projectName,
 		FirebaseAPIKey:     apiKey,
 		ServiceAccountPath: destPath,
+		Referer:            flagReferer,
 	}
 	if err := store.SaveProject(p); err != nil {
 		return fmt.Errorf("saving project config: %w", err)

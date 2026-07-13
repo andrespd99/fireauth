@@ -52,8 +52,9 @@ type FirebaseError struct {
 }
 
 // SignInWithPassword authenticates a user via email/password and returns the
-// sign-in response including ID and refresh tokens.
-func SignInWithPassword(apiKey, email, password string) (*SignInResponse, error) {
+// sign-in response including ID and refresh tokens. If referer is non-empty it
+// overrides the default Referer header sent with the request.
+func SignInWithPassword(apiKey, email, password, referer string) (*SignInResponse, error) {
 	reqURL := fmt.Sprintf("%s?key=%s", SignInBaseURL, url.QueryEscape(apiKey))
 	logger.Debug("firebase sign-in request", "url", SignInBaseURL, "email", email)
 
@@ -72,7 +73,7 @@ func SignInWithPassword(apiKey, email, password string) (*SignInResponse, error)
 		return nil, fmt.Errorf("building sign-in request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Referer", RefererHeader)
+	req.Header.Set("Referer", effectiveReferer(referer))
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -122,8 +123,9 @@ type RefreshResponse struct {
 	UserID       string `json:"user_id"`
 }
 
-// RefreshIDToken exchanges a refresh token for a new ID token.
-func RefreshIDToken(apiKey, refreshToken string) (*RefreshResponse, error) {
+// RefreshIDToken exchanges a refresh token for a new ID token. If referer is
+// non-empty it overrides the default Referer header sent with the request.
+func RefreshIDToken(apiKey, refreshToken, referer string) (*RefreshResponse, error) {
 	reqURL := fmt.Sprintf("%s?key=%s", RefreshBaseURL, url.QueryEscape(apiKey))
 	logger.Debug("firebase token refresh request", "url", RefreshBaseURL)
 
@@ -136,7 +138,7 @@ func RefreshIDToken(apiKey, refreshToken string) (*RefreshResponse, error) {
 		return nil, fmt.Errorf("building refresh request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("Referer", RefererHeader)
+	req.Header.Set("Referer", effectiveReferer(referer))
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -168,6 +170,15 @@ func RefreshIDToken(apiKey, refreshToken string) (*RefreshResponse, error) {
 }
 
 // --- Helpers ---
+
+// effectiveReferer returns the referer to use for a request, falling back to
+// the package default RefererHeader when none is provided.
+func effectiveReferer(referer string) string {
+	if referer != "" {
+		return referer
+	}
+	return RefererHeader
+}
 
 func truncate(s string, n int) string {
 	if len(s) <= n {
