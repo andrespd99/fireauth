@@ -2,9 +2,9 @@
 
 [![CI](https://github.com/andrespd99/fireauth/actions/workflows/ci.yml/badge.svg)](https://github.com/andrespd99/fireauth/actions/workflows/ci.yml)
 [![Release](https://github.com/andrespd99/fireauth/actions/workflows/release.yml/badge.svg)](https://github.com/andrespd99/fireauth/actions/workflows/release.yml)
+[![Latest Release](https://img.shields.io/github/v/release/andrespd99/fireauth)](https://github.com/andrespd99/fireauth/releases)
 [![Go Report Card](https://goreportcard.com/badge/github.com/andrespd99/fireauth)](https://goreportcard.com/report/github.com/andrespd99/fireauth)
 [![Go Version](https://img.shields.io/github/go-mod/go-version/andrespd99/fireauth)](https://go.dev/dl/)
-[![License](https://img.shields.io/github/license/andrespd99/fireauth)](LICENSE)
 
 Stop digging through DevTools for bearer tokens. **fireauth** gives you a valid Firebase ID token in your terminal — one command, no browser, no copy-paste.
 
