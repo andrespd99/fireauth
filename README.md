@@ -1,5 +1,11 @@
 # fireauth
 
+[![CI](https://github.com/andrespd99/fireauth/actions/workflows/ci.yml/badge.svg)](https://github.com/andrespd99/fireauth/actions/workflows/ci.yml)
+[![Release](https://github.com/andrespd99/fireauth/actions/workflows/release.yml/badge.svg)](https://github.com/andrespd99/fireauth/actions/workflows/release.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/andrespd99/fireauth)](https://goreportcard.com/report/github.com/andrespd99/fireauth)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/andrespd99/fireauth)](https://go.dev/dl/)
+[![License](https://img.shields.io/github/license/andrespd99/fireauth)](LICENSE)
+
 Stop digging through DevTools for bearer tokens. **fireauth** gives you a valid Firebase ID token in your terminal — one command, no browser, no copy-paste.
 
 It authenticates against Firebase Auth via the REST API, stores the session locally, and prints a ready-to-use bearer token you can pipe straight into `curl`, Postman, or any HTTP client. Tokens auto-refresh when they expire, so you set it up once and forget about it.
