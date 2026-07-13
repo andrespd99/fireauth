@@ -38,17 +38,6 @@ To install a specific version (e.g. a pre-release):
 curl -sSL "https://raw.githubusercontent.com/andrespd99/fireauth/main/install.sh" | bash -s -- --version 0.3.0-alpha.1
 ```
 
-### Build from source
-
-If you prefer to build from source (requires [Go 1.21+](https://go.dev/dl/) and [Task](https://taskfile.dev/)):
-
-```bash
-git clone https://github.com/andrespd99/fireauth.git
-cd fireauth
-task build
-cp fireauth /usr/local/bin/
-```
-
 ## Setup
 
 Run the setup wizard to configure your first Firebase project:
@@ -58,15 +47,17 @@ fireauth init
 ```
 
 This will prompt for:
-1. Your Firebase Web API Key
-2. Path to the service account JSON file
+1. Project name.
+2. Your Firebase Web API Key
+3. Path to the service account JSON file
+4. Referer URL (defaults to 'http://localhost'). _Only required if the Web API Key of your project has website restrictions in Google Cloud console_.
 
-The service account JSON is copied into `~/.fireauth/projects/<name>/` so the original can be safely deleted from Downloads. The project name defaults to the `project_id` from the service account JSON.
+The service account JSON is copied into `~/.fireauth/projects/<name>/` so the original can be safely deleted from Downloads. The project name defaults to either 'default', or the `project_id` from the service account JSON if there's already a project named 'default'.
 
 For non-interactive setup (e.g., scripting):
 
 ```bash
-fireauth init --api-key "AIzaSy..." --service-account ~/path/to/service-account.json
+fireauth init --name "name" --api-key "AIzaSy..." --service-account ~/path/to/service-account.json  --referer "https://..."
 ```
 
 If your Firebase API key is restricted to specific referrer domains, pass the
