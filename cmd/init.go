@@ -47,11 +47,39 @@ func runInit(cmd *cobra.Command, args []string) error {
 	}
 	logger.Debug("config directory ready", "path", dir)
 
-	// 2. Determine project name.
+	// 2. Determine project name (ask first).
 	projectName := flagProjectName
 	if projectName == "" && len(args) == 1 {
 		projectName = args[0]
 	}
+	if projectName == "" {
+		projects, _ := store.ListProjects()
+		defaultName := "default"
+		for _, p := range projects {
+			if p == defaultName {
+				// "default" is taken — leave the prompt blank so the user must type one.
+				defaultName = ""
+				break
+			}
+		}
+		if defaultName != "" {
+			fmt.Printf("Project name [%s]: ", defaultName)
+		} else {
+			fmt.Print("Project name: ")
+		}
+		input, err := reader.ReadString('\n')
+		if err != nil {
+			return fmt.Errorf("reading project name: %w", err)
+		}
+		projectName = strings.TrimSpace(input)
+		if projectName == "" {
+			projectName = defaultName
+		}
+	}
+	if projectName == "" {
+		return fmt.Errorf("project name cannot be empty")
+	}
+	logger.Debug("project name", "name", projectName)
 
 	// 3. Get API key.
 	apiKey := flagAPIKey
@@ -102,27 +130,6 @@ func runInit(cmd *cobra.Command, args []string) error {
 	}
 	logger.Debug("service account validated", "project_id", projectID)
 
-	// Derive project name interactively if not provided.
-	if projectName == "" {
-		projects, _ := store.ListProjects()
-		defaultName := "default"
-		for _, p := range projects {
-			if p == defaultName {
-				defaultName = projectID
-				break
-			}
-		}
-		fmt.Printf("Project name [%s]: ", defaultName)
-		input, err := reader.ReadString('\n')
-		if err != nil {
-			return fmt.Errorf("reading project name: %w", err)
-		}
-		projectName = strings.TrimSpace(input)
-		if projectName == "" {
-			projectName = defaultName
-		}
-	}
-
 	// 5. Create project directory and copy service account into it.
 	pdir, err := config.ProjectDir(projectName)
 	if err != nil {
@@ -138,7 +145,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 	}
 	logger.Debug("service account copied", "dest", destPath)
 
-	// 6. Save project config.
+	// 6. Get referer URL and save project config.
 	referer := flagReferer
 	if referer == "" {
 		fmt.Print("Referer URL [http://localhost]: ")
