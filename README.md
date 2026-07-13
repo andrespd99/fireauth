@@ -1,8 +1,58 @@
 # fireauth
 
-CLI tool for authenticating against Firebase and managing bearer tokens for REST API testing.
+Stop digging through DevTools for bearer tokens. **fireauth** gives you a valid Firebase ID token in your terminal — one command, no browser, no copy-paste.
 
-Instead of manually grabbing tokens from the frontend, run a command and get everything you need. Supports multiple simultaneous user sessions for multi-account testing and **multiple Firebase projects** for different environments and/or applications.
+It authenticates against Firebase Auth via the REST API, stores the session locally, and prints a ready-to-use bearer token you can pipe straight into `curl`, Postman, or any HTTP client. Tokens auto-refresh when they expire, so you set it up once and forget about it.
+
+**Why you'll like it:**
+
+- **One-command tokens** — `fireauth token` prints a valid bearer token to stdout, pipe-friendly.
+- **Multiple projects** — configure staging, production, and side-projects; switch with a single command.
+- **Multiple sessions per project** — log in as several users and switch between them instantly.
+- **Postman-ready** — built-in local HTTP server so Postman pre-request scripts can fetch tokens automatically.
+- **Zero dependencies at runtime** — single static binary, no Node, no browser, no SDK bloat.
+
+## Quick examples
+
+### Use the token with `curl`
+
+```bash
+# Get a bearer token (prints to stdout)
+fireauth token
+
+# Pipe it straight into a request
+curl -H "Authorization: Bearer $(fireauth token)" https://api.example.com/users/me
+
+# Target a different project without switching
+curl -H "Authorization: Bearer $(fireauth --project production token)" https://api.example.com/users/me
+```
+
+### Use it in Postman
+
+Postman pre-request scripts can't spawn child processes, so `fireauth` ships with a tiny local HTTP server. Start it once and Postman fetches fresh tokens on every request:
+
+```bash
+fireauth serve   # listens on http://127.0.0.1:9876
+```
+
+Then in your Postman collection's **Pre-request Script**:
+
+```javascript
+pm.sendRequest({
+    url: "http://127.0.0.1:9876/token",
+    method: "GET"
+}, function (err, response) {
+    if (err) throw err;
+    pm.request.headers.upsert({
+        key: "Authorization",
+        value: "Bearer " + response.text()
+    });
+});
+```
+
+That's it — every request in the collection is now authenticated with a fresh, valid token.
+
+---
 
 ## Prerequisites
 
@@ -38,6 +88,17 @@ To install a specific version (e.g. a pre-release):
 curl -sSL "https://raw.githubusercontent.com/andrespd99/fireauth/main/install.sh" | bash -s -- --version 0.3.0-alpha.1
 ```
 
+### Build from source
+
+If you prefer to build from source (requires [Go 1.21+](https://go.dev/dl/) and [Task](https://taskfile.dev/)):
+
+```bash
+git clone https://github.com/andrespd99/fireauth.git
+cd fireauth
+task build
+cp fireauth /usr/local/bin/
+```
+
 ## Setup
 
 Run the setup wizard to configure your first Firebase project:
@@ -50,7 +111,7 @@ This will prompt for:
 1. Project name.
 2. Your Firebase Web API Key
 3. Path to the service account JSON file
-4. Referer URL (defaults to 'http://localhost'). _Only required if the Web API Key of your project has website restrictions in Google Cloud console_.
+4. Referer URL (defaults to 'http://localhost'). _Only required if the Web API Key of your project has website restrictions in Google Cloud console._
 
 The service account JSON is copied into `~/.fireauth/projects/<name>/` so the original can be safely deleted from Downloads. The project name defaults to either 'default', or the `project_id` from the service account JSON if there's already a project named 'default'.
 
