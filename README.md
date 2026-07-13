@@ -52,6 +52,21 @@ pm.sendRequest({
 
 That's it — every request in the collection is now authenticated with a fresh, valid token.
 
+### Get user metadata programmatically
+
+`fireauth me --json` outputs structured user info (email, UID, providers, verification status, etc.) that you can pipe into `jq` or any JSON-aware tool:
+
+```bash
+# Grab the UID of the current user
+fireauth me --json | jq -r .uid
+
+# Extract just the email
+fireauth me --json | jq -r .email
+
+# Check if the email is verified
+fireauth me --json | jq -r .email_verified
+```
+
 ---
 
 ## Prerequisites
