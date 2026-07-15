@@ -24,7 +24,7 @@ Preferred reporting methods, in order:
    [Report a vulnerability](https://github.com/andrespd99/fireauth/security/advisories/new)
    on the Security tab. This is the fastest path and keeps the report
    confidential.
-2. **Email** — send details to **hello@andrespacheco.dev** with
+2. **Email** — send details to **andres.epacheco99@gmail.com** with
    `[fireauth security]` in the subject line.
 
 Please include:
